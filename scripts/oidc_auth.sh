@@ -38,7 +38,7 @@ echo "OIDC token obtained (length: ${#OIDC_TOKEN})"
 # This API doesn't require pre-configured credentials
 echo "Assuming role: $ROLE_ARN"
 ASSUME_RESULT=$(aliyun sts AssumeRoleWithOIDC \
-  --RegionId "$REGION" \
+  --region "$REGION" \
   --RoleArn "$ROLE_ARN" \
   --OIDCProviderArn "$OIDC_PROVIDER_ARN" \
   --OIDCToken "$OIDC_TOKEN" \
