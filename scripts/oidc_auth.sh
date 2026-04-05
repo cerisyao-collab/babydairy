@@ -23,6 +23,32 @@ if [ -z "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ] || [ -z "$ACTIONS_ID_TOKEN_REQUEST_U
 fi
 
 echo "Getting OIDC token from GitHub..."
+
+# Initialize aliyun CLI profile (required before any API call)
+# Use interactive mode bypass with dummy credentials
+mkdir -p ~/.aliyun
+cat > ~/.aliyun/config.json << EOF
+{
+  "current": "default",
+  "profiles": {
+    "default": {
+      "mode": "AK",
+      "access_key_id": "",
+      "access_key_secret": "",
+      "sts_token": "",
+      "ram_role_name": "",
+      "ram_role_arn": "",
+      "ram_session_name": "",
+      "expired_seconds": 0,
+      "verified": false,
+      "region_id": "$REGION",
+      "output_format": "json",
+      "language": "en"
+    }
+  }
+}
+EOF
+
 OIDC_TOKEN=$(curl -sSL \
   -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
   "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${AUDIENCE}" | jq -r '.value')
