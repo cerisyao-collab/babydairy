@@ -23,27 +23,6 @@ if [ -z "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ] || [ -z "$ACTIONS_ID_TOKEN_REQUEST_U
 fi
 
 echo "Getting OIDC token from GitHub..."
-
-# Initialize aliyun CLI profile (required before any API call)
-mkdir -p ~/.aliyun
-cat > ~/.aliyun/config.json << EOF
-{
-  "current": "default",
-  "profiles": [
-    {
-      "name": "default",
-      "mode": "AK",
-      "access_key_id": "",
-      "access_key_secret": "",
-      "sts_token": "",
-      "region_id": "$REGION",
-      "output_format": "json",
-      "language": "en"
-    }
-  ]
-}
-EOF
-
 OIDC_TOKEN=$(curl -sSL \
   -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
   "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${AUDIENCE}" | jq -r '.value')
@@ -55,43 +34,84 @@ fi
 
 echo "OIDC token obtained (length: ${#OIDC_TOKEN})"
 
-# Call AssumeRoleWithOIDC API with region parameter
-# This API doesn't require pre-configured credentials
+# Call AssumeRoleWithOIDC API directly via HTTP
+# API endpoint: https://sts.aliyuncs.com
 echo "Assuming role: $ROLE_ARN"
-ASSUME_RESULT=$(aliyun sts AssumeRoleWithOIDC \
-  --region "$REGION" \
-  --RoleArn "$ROLE_ARN" \
-  --OIDCProviderArn "$OIDC_PROVIDER_ARN" \
-  --OIDCToken "$OIDC_TOKEN" \
-  --RoleSessionName "$SESSION_NAME" \
-  --DurationSeconds 3600)
+
+# Build request parameters
+PARAMS="Action=AssumeRoleWithOIDC"
+PARAMS="$PARAMS&RoleArn=$ROLE_ARN"
+PARAMS="$PARAMS&OIDCProviderArn=$OIDC_PROVIDER_ARN"
+PARAMS="$PARAMS&OIDCToken=$OIDC_TOKEN"
+PARAMS="$PARAMS&RoleSessionName=$SESSION_NAME"
+PARAMS="$PARAMS&DurationSeconds=3600"
+PARAMS="$PARAMS&Version=2015-04-01"
+PARAMS="$PARAMS&Format=JSON"
+PARAMS="$PARAMS&RegionId=$REGION"
+
+# Make HTTP request to STS API
+STS_ENDPOINT="https://sts.${REGION}.aliyuncs.com"
+RESPONSE=$(curl -sSL -G "$STS_ENDPOINT" --data-urlencode "Action=AssumeRoleWithOIDC" \
+  --data-urlencode "RoleArn=$ROLE_ARN" \
+  --data-urlencode "OIDCProviderArn=$OIDC_PROVIDER_ARN" \
+  --data-urlencode "OIDCToken=$OIDC_TOKEN" \
+  --data-urlencode "RoleSessionName=$SESSION_NAME" \
+  --data-urlencode "DurationSeconds=3600" \
+  --data-urlencode "Version=2015-04-01" \
+  --data-urlencode "Format=JSON" \
+  --data-urlencode "RegionId=$REGION")
+
+# Check for error
+if echo "$RESPONSE" | jq -e '.Error' > /dev/null 2>&1; then
+  echo "Error: API call failed"
+  echo "$RESPONSE"
+  exit 1
+fi
 
 # Parse credentials from response
-ACCESS_KEY_ID=$(echo "$ASSUME_RESULT" | jq -r '.Credentials.AccessKeyId')
-ACCESS_KEY_SECRET=$(echo "$ASSUME_RESULT" | jq -r '.Credentials.AccessKeySecret')
-SECURITY_TOKEN=$(echo "$ASSUME_RESULT" | jq -r '.Credentials.SecurityToken')
-EXPIRATION=$(echo "$ASSUME_RESULT" | jq -r '.Credentials.Expiration')
+ACCESS_KEY_ID=$(echo "$RESPONSE" | jq -r '.Credentials.AccessKeyId')
+ACCESS_KEY_SECRET=$(echo "$RESPONSE" | jq -r '.Credentials.AccessKeySecret')
+SECURITY_TOKEN=$(echo "$RESPONSE" | jq -r '.Credentials.SecurityToken')
+EXPIRATION=$(echo "$RESPONSE" | jq -r '.Credentials.Expiration')
 
 if [ -z "$ACCESS_KEY_ID" ] || [ "$ACCESS_KEY_ID" = "null" ]; then
   echo "Error: Failed to get credentials"
-  echo "Response: $ASSUME_RESULT"
+  echo "Response: $RESPONSE"
   exit 1
 fi
 
 echo "Credentials obtained successfully"
 echo "Expiration: $EXPIRATION"
 
-# Configure aliyun CLI with temporary credentials
-aliyun configure set \
-  --access-key-id "$ACCESS_KEY_ID" \
-  --access-key-secret "$ACCESS_KEY_SECRET" \
-  --sts-token "$SECURITY_TOKEN" \
-  --region "$REGION"
+# Initialize aliyun CLI config with obtained credentials
+mkdir -p ~/.aliyun
+cat > ~/.aliyun/config.json << EOF
+{
+  "current": "default",
+  "profiles": [
+    {
+      "name": "default",
+      "mode": "StsToken",
+      "access_key_id": "$ACCESS_KEY_ID",
+      "access_key_secret": "$ACCESS_KEY_SECRET",
+      "sts_token": "$SECURITY_TOKEN",
+      "region_id": "$REGION",
+      "output_format": "json",
+      "language": "en"
+    }
+  ]
+}
+EOF
 
 # Also export as environment variables for other tools
 export ALIYUN_ACCESS_KEY_ID="$ACCESS_KEY_ID"
 export ALIYUN_ACCESS_KEY_SECRET="$ACCESS_KEY_SECRET"
 export ALIYUN_SECURITY_TOKEN="$SECURITY_TOKEN"
+
+# Set environment variables for Terraform/Serverless Devs
+export ALICLOUD_ACCESS_KEY="$ACCESS_KEY_ID"
+export ALICLOUD_SECRET_KEY="$ACCESS_KEY_SECRET"
+export ALICLOUD_SECURITY_TOKEN="$SECURITY_TOKEN"
 
 echo "::add-mask::$ACCESS_KEY_ID"
 echo "::add-mask::$ACCESS_KEY_SECRET"
