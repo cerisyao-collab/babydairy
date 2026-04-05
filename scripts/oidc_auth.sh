@@ -42,11 +42,15 @@ echo "Assuming role: $ROLE_ARN"
 STS_ENDPOINT="https://sts.aliyuncs.com"  # Global endpoint
 
 # Build request body for POST
+# Include Timestamp as required by API (but no Signature needed for AssumeRoleWithOIDC)
+TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
 RESPONSE=$(curl -sSL -X POST "$STS_ENDPOINT" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "Action=AssumeRoleWithOIDC" \
   -d "Version=2015-04-01" \
   -d "Format=JSON" \
+  -d "Timestamp=$TIMESTAMP" \
   -d "RoleArn=$ROLE_ARN" \
   -d "OIDCProviderArn=$OIDC_PROVIDER_ARN" \
   -d "OIDCToken=$OIDC_TOKEN" \
