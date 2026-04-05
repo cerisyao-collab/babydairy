@@ -36,8 +36,9 @@ jobs:
       - name: Configure Aliyun Credentials (OIDC)
         uses: aliyun/configure-credentials-action@v1
         with:
-          role-arn: ${{ secrets.TERRAFORM_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.TERRAFORM_DEPLOY_ROLE_ARN }}
           oidc-provider-arn: ${{ secrets.OIDC_PROVIDER_ARN }}
+          audience: github-actions
           role-session-name: terraform-deploy-${{ github.run_id }}
 
       - name: Setup Terraform
@@ -83,8 +84,9 @@ jobs:
       - name: Configure Aliyun Credentials (OIDC)
         uses: aliyun/configure-credentials-action@v1
         with:
-          role-arn: ${{ secrets.FC_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.FC_DEPLOY_ROLE_ARN }}
           oidc-provider-arn: ${{ secrets.OIDC_PROVIDER_ARN }}
+          audience: github-actions
           role-session-name: fc-deploy-${{ github.run_id }}
 
       - name: Setup Node.js
@@ -116,8 +118,9 @@ jobs:
       - name: Configure Aliyun Credentials (OIDC)
         uses: aliyun/configure-credentials-action@v1
         with:
-          role-arn: ${{ secrets.FC_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.FC_DEPLOY_ROLE_ARN }}
           oidc-provider-arn: ${{ secrets.OIDC_PROVIDER_ARN }}
+          audience: github-actions
           role-session-name: verify-${{ github.run_id }}
 
       - name: Health Check
