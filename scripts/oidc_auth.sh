@@ -16,6 +16,9 @@ if [ -z "$ROLE_ARN" ] || [ -z "$OIDC_PROVIDER_ARN" ]; then
   exit 1
 fi
 
+# Configure aliyun CLI region first (required before any API call)
+aliyun configure set --region "$REGION"
+
 # Get OIDC token from GitHub Actions environment
 if [ -z "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ] || [ -z "$ACTIONS_ID_TOKEN_REQUEST_URL" ]; then
   echo "Error: This script must run in GitHub Actions environment"
