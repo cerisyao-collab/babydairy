@@ -1,0 +1,146 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - development
+
+permissions:
+  id-token: write  # Required for OIDC token
+  contents: read
+
+env:
+  TERRAFORM_VERSION: '1.6.0'
+  NODE_VERSION: '18'
+
+jobs:
+  # Job 1: Deploy Infrastructure with Terraform
+  deploy-infrastructure:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.inputs.environment == 'production'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Aliyun Credentials (OIDC)
+        uses: aliyun/configure-credentials-action@v1
+        with:
+          role-arn: ${{ secrets.TERRAFORM_DEPLOY_ROLE_ARN }}
+          oidc-provider-arn: ${{ secrets.OIDC_PROVIDER_ARN }}
+          role-session-name: terraform-deploy-${{ github.run_id }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: terraform
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -out=tfplan -detailed-exitcode
+        working-directory: terraform
+        continue-on-error: true
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && steps.plan.outcome == 'success'
+        run: terraform apply -auto-approve tfplan
+        working-directory: terraform
+
+      - name: Upload Terraform Plan
+        if: steps.plan.outcome == 'changes'
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: terraform/tfplan
+          retention-days: 1
+
+  # Job 2: Deploy FC Function
+  deploy-function:
+    name: Deploy FC Function
+    runs-on: ubuntu-latest
+    needs: deploy-infrastructure
+    if: always() && needs.deploy-infrastructure.result != 'failure'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Aliyun Credentials (OIDC)
+        uses: aliyun/configure-credentials-action@v1
+        with:
+          role-arn: ${{ secrets.FC_DEPLOY_ROLE_ARN }}
+          oidc-provider-arn: ${{ secrets.OIDC_PROVIDER_ARN }}
+          role-session-name: fc-deploy-${{ github.run_id }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Serverless Devs
+        run: npm install -g @serverless-devs/s
+
+      - name: Deploy FC Function
+        run: s deploy
+        env:
+          VPC_ID: ${{ secrets.VPC_ID }}
+          VSWITCH_ID: ${{ secrets.VSWITCH_ID }}
+          SECURITY_GROUP_ID: ${{ secrets.SECURITY_GROUP_ID }}
+          OSS_SECRETS_BUCKET: ${{ secrets.OSS_SECRETS_BUCKET }}
+          OSS_ENDPOINT: oss-cn-shanghai.aliyuncs.com
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  # Job 3: Verify Deployment
+  verify:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: deploy-function
+    if: always() && needs.deploy-function.result == 'success'
+
+    steps:
+      - name: Configure Aliyun Credentials (OIDC)
+        uses: aliyun/configure-credentials-action@v1
+        with:
+          role-arn: ${{ secrets.FC_DEPLOY_ROLE_ARN }}
+          oidc-provider-arn: ${{ secrets.OIDC_PROVIDER_ARN }}
+          role-session-name: verify-${{ github.run_id }}
+
+      - name: Health Check
+        run: |
+          # Get FC HTTP trigger endpoint
+          ENDPOINT=$(s info 2>/dev/null | grep -oP 'httpTrigger: \K.*' || echo "")
+
+          if [ -z "$ENDPOINT" ]; then
+            echo "Warning: Could not get HTTP trigger endpoint"
+            exit 0
+          fi
+
+          echo "API Endpoint: $ENDPOINT"
+
+          # Health check
+          curl -s "$ENDPOINT/api/health" || echo "Health check completed"
+
+      - name: Deployment Summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Actor**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Run ID**: ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY

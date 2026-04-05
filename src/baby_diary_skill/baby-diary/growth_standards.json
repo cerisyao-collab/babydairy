@@ -1,0 +1,179 @@
+{
+  "version": "1.0",
+  "source": "崔玉涛育儿建议 + 浙江省妇保标准",
+  "updated": "2026-03-30",
+  "note": "标准为参考范围，个体差异正常，如有疑虑请咨询医生",
+  "standards": {
+    "day_1": {
+      "weight_kg": {"min": 2.5, "max": 4.0, "avg": 3.2},
+      "height_cm": {"min": 47, "max": 53, "avg": 50},
+      "head_circumference_cm": {"min": 32, "max": 36, "avg": 34},
+      "urine_count": {"min": 1, "max": 4},
+      "bowel_count": {"min": 1, "max": 3},
+      "feeding_times": {"min": 8, "max": 12},
+      "milk_volume_ml": {"min": 30, "max": 60}
+    },
+    "day_2": {
+      "weight_kg": {"min": 2.5, "max": 4.0, "avg": 3.2},
+      "height_cm": {"min": 47, "max": 53, "avg": 50},
+      "head_circumference_cm": {"min": 32, "max": 36, "avg": 34},
+      "urine_count": {"min": 2, "max": 5},
+      "bowel_count": {"min": 1, "max": 3},
+      "feeding_times": {"min": 8, "max": 12},
+      "milk_volume_ml": {"min": 30, "max": 60}
+    },
+    "day_3": {
+      "weight_kg": {"min": 2.5, "max": 4.0, "avg": 3.2},
+      "height_cm": {"min": 47, "max": 53, "avg": 50},
+      "head_circumference_cm": {"min": 32, "max": 36, "avg": 34},
+      "urine_count": {"min": 3, "max": 6},
+      "bowel_count": {"min": 2, "max": 4},
+      "feeding_times": {"min": 8, "max": 12},
+      "milk_volume_ml": {"min": 30, "max": 60}
+    },
+    "day_4": {
+      "weight_kg": {"min": 2.5, "max": 4.0, "avg": 3.2},
+      "height_cm": {"min": 47, "max": 53, "avg": 50},
+      "head_circumference_cm": {"min": 32, "max": 36, "avg": 34},
+      "urine_count": {"min": 4, "max": 6},
+      "bowel_count": {"min": 2, "max": 4},
+      "feeding_times": {"min": 8, "max": 12},
+      "milk_volume_ml": {"min": 40, "max": 70}
+    },
+    "day_5": {
+      "weight_kg": {"min": 2.5, "max": 4.0, "avg": 3.2},
+      "height_cm": {"min": 47, "max": 53, "avg": 50},
+      "head_circumference_cm": {"min": 32, "max": 36, "avg": 34},
+      "urine_count": {"min": 5, "max": 8},
+      "bowel_count": {"min": 2, "max": 5},
+      "feeding_times": {"min": 8, "max": 12},
+      "milk_volume_ml": {"min": 40, "max": 70}
+    },
+    "day_6": {
+      "weight_kg": {"min": 2.5, "max": 4.0, "avg": 3.2},
+      "height_cm": {"min": 47, "max": 53, "avg": 50},
+      "head_circumference_cm": {"min": 32, "max": 36, "avg": 34},
+      "urine_count": {"min": 6, "max": 8},
+      "bowel_count": {"min": 2, "max": 5},
+      "feeding_times": {"min": 8, "max": 12},
+      "milk_volume_ml": {"min": 50, "max": 80}
+    },
+    "day_7": {
+      "weight_kg": {"min": 2.6, "max": 4.1, "avg": 3.3},
+      "height_cm": {"min": 47, "max": 53, "avg": 50},
+      "head_circumference_cm": {"min": 32, "max": 36, "avg": 34},
+      "urine_count": {"min": 6, "max": 8},
+      "bowel_count": {"min": 2, "max": 5},
+      "feeding_times": {"min": 8, "max": 12},
+      "milk_volume_ml": {"min": 50, "max": 80}
+    },
+    "day_10": {
+      "weight_kg": {"min": 2.7, "max": 4.2, "avg": 3.4},
+      "height_cm": {"min": 48, "max": 54, "avg": 51},
+      "head_circumference_cm": {"min": 33, "max": 37, "avg": 35},
+      "urine_count": {"min": 6, "max": 8},
+      "bowel_count": {"min": 2, "max": 5},
+      "feeding_times": {"min": 8, "max": 12},
+      "milk_volume_ml": {"min": 60, "max": 90}
+    },
+    "day_14": {
+      "weight_kg": {"min": 2.8, "max": 4.4, "avg": 3.6},
+      "height_cm": {"min": 48, "max": 54, "avg": 51},
+      "head_circumference_cm": {"min": 33, "max": 37, "avg": 35},
+      "urine_count": {"min": 6, "max": 10},
+      "bowel_count": {"min": 2, "max": 5},
+      "feeding_times": {"min": 8, "max": 12},
+      "milk_volume_ml": {"min": 60, "max": 90}
+    },
+    "day_20": {
+      "weight_kg": {"min": 3.0, "max": 4.6, "avg": 3.8},
+      "height_cm": {"min": 49, "max": 55, "avg": 52},
+      "head_circumference_cm": {"min": 34, "max": 38, "avg": 36},
+      "urine_count": {"min": 6, "max": 10},
+      "bowel_count": {"min": 2, "max": 5},
+      "feeding_times": {"min": 8, "max": 12},
+      "milk_volume_ml": {"min": 70, "max": 100}
+    },
+    "day_28": {
+      "weight_kg": {"min": 3.2, "max": 4.8, "avg": 4.0},
+      "height_cm": {"min": 50, "max": 56, "avg": 53},
+      "head_circumference_cm": {"min": 34, "max": 38, "avg": 36},
+      "urine_count": {"min": 6, "max": 10},
+      "bowel_count": {"min": 2, "max": 5},
+      "feeding_times": {"min": 8, "max": 12},
+      "milk_volume_ml": {"min": 80, "max": 120}
+    },
+    "day_30": {
+      "weight_kg": {"min": 3.3, "max": 5.0, "avg": 4.1},
+      "height_cm": {"min": 50, "max": 56, "avg": 53},
+      "head_circumference_cm": {"min": 34, "max": 38, "avg": 36},
+      "urine_count": {"min": 6, "max": 10},
+      "bowel_count": {"min": 2, "max": 5},
+      "feeding_times": {"min": 8, "max": 12},
+      "milk_volume_ml": {"min": 80, "max": 120}
+    },
+    "day_42": {
+      "weight_kg": {"min": 3.8, "max": 5.6, "avg": 4.7},
+      "height_cm": {"min": 52, "max": 58, "avg": 55},
+      "head_circumference_cm": {"min": 36, "max": 40, "avg": 38},
+      "urine_count": {"min": 6, "max": 10},
+      "bowel_count": {"min": 2, "max": 5},
+      "feeding_times": {"min": 7, "max": 10},
+      "milk_volume_ml": {"min": 90, "max": 130}
+    },
+    "day_60": {
+      "weight_kg": {"min": 4.3, "max": 6.3, "avg": 5.3},
+      "height_cm": {"min": 54, "max": 61, "avg": 58},
+      "head_circumference_cm": {"min": 37, "max": 41, "avg": 39},
+      "urine_count": {"min": 6, "max": 10},
+      "bowel_count": {"min": 1, "max": 4},
+      "feeding_times": {"min": 6, "max": 9},
+      "milk_volume_ml": {"min": 100, "max": 140}
+    },
+    "day_90": {
+      "weight_kg": {"min": 5.0, "max": 7.2, "avg": 6.1},
+      "height_cm": {"min": 57, "max": 64, "avg": 60},
+      "head_circumference_cm": {"min": 38, "max": 42, "avg": 40},
+      "urine_count": {"min": 6, "max": 10},
+      "bowel_count": {"min": 1, "max": 4},
+      "feeding_times": {"min": 6, "max": 8},
+      "milk_volume_ml": {"min": 120, "max": 160}
+    },
+    "day_100": {
+      "weight_kg": {"min": 5.2, "max": 7.5, "avg": 6.3},
+      "height_cm": {"min": 58, "max": 65, "avg": 61},
+      "head_circumference_cm": {"min": 38, "max": 42, "avg": 40},
+      "urine_count": {"min": 6, "max": 10},
+      "bowel_count": {"min": 1, "max": 4},
+      "feeding_times": {"min": 6, "max": 8},
+      "milk_volume_ml": {"min": 120, "max": 160}
+    },
+    "day_120": {
+      "weight_kg": {"min": 5.5, "max": 7.9, "avg": 6.7},
+      "height_cm": {"min": 59, "max": 67, "avg": 63},
+      "head_circumference_cm": {"min": 39, "max": 43, "avg": 41},
+      "urine_count": {"min": 6, "max": 10},
+      "bowel_count": {"min": 1, "max": 3},
+      "feeding_times": {"min": 5, "max": 7},
+      "milk_volume_ml": {"min": 130, "max": 170}
+    },
+    "day_150": {
+      "weight_kg": {"min": 6.0, "max": 8.5, "avg": 7.2},
+      "height_cm": {"min": 61, "max": 69, "avg": 65},
+      "head_circumference_cm": {"min": 40, "max": 44, "avg": 42},
+      "urine_count": {"min": 6, "max": 10},
+      "bowel_count": {"min": 1, "max": 3},
+      "feeding_times": {"min": 5, "max": 7},
+      "milk_volume_ml": {"min": 140, "max": 180}
+    },
+    "day_180": {
+      "weight_kg": {"min": 6.5, "max": 9.0, "avg": 7.7},
+      "height_cm": {"min": 63, "max": 71, "avg": 67},
+      "head_circumference_cm": {"min": 41, "max": 45, "avg": 43},
+      "urine_count": {"min": 6, "max": 10},
+      "bowel_count": {"min": 1, "max": 3},
+      "feeding_times": {"min": 5, "max": 7},
+      "milk_volume_ml": {"min": 150, "max": 200}
+    }
+  }
+}

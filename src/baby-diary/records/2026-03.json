@@ -1,0 +1,201 @@
+[
+  {
+    "id": "7e0c68f9-7fc9-45c0-b770-db1a8771c587",
+    "type": "feeding",
+    "timestamp": "2026-03-25T20:24:18.909566",
+    "date": "2026-03-25",
+    "details": {
+      "feeding_type": "breast",
+      "duration_minutes": 20,
+      "amount_ml": 150,
+      "side": "left"
+    },
+    "images": []
+  },
+  {
+    "id": "afff7aef-9910-4e32-a188-d60102f6f34a",
+    "type": "bowel",
+    "timestamp": "2026-03-25T20:24:32.608014",
+    "date": "2026-03-25",
+    "details": {
+      "type": "正常",
+      "color": "黄色",
+      "amount": "中等"
+    },
+    "images": []
+  },
+  {
+    "id": "9579f655-f40e-4298-8c40-7bfaf5bf22dc",
+    "type": "medication",
+    "timestamp": "2026-03-25T20:24:32.608346",
+    "date": "2026-03-25",
+    "details": {
+      "name": "维生素D",
+      "dosage": "400IU",
+      "notes": "饭后服用"
+    },
+    "images": []
+  },
+  {
+    "id": "713f1d8c-f770-4271-8a41-f26e2e6104d6",
+    "type": "bathing",
+    "timestamp": "2026-03-25T20:24:32.608779",
+    "date": "2026-03-25",
+    "details": {
+      "water_temperature": "38",
+      "duration_minutes": 15,
+      "notes": "正常"
+    },
+    "images": []
+  },
+  {
+    "id": "22d451ec-2267-464a-b6fb-37ae68ca72b3",
+    "type": "sleep",
+    "timestamp": "2026-03-25T20:24:32.608935",
+    "date": "2026-03-25",
+    "details": {
+      "sleep_start": "2026-03-25T22:00:00",
+      "sleep_end": "2026-03-26T06:00:00",
+      "nap": false
+    },
+    "images": []
+  },
+  {
+    "id": "cd9f9ed1-f2e0-49bf-b9b6-226acc217d27",
+    "type": "growth",
+    "timestamp": "2026-03-25T20:24:32.609091",
+    "date": "2026-03-25",
+    "details": {
+      "temperature": "36.5",
+      "weight_kg": "3.5",
+      "height_cm": "50"
+    },
+    "images": []
+  },
+  {
+    "id": "94c4e602-1165-4418-9f3a-3ef4c1bf46e4",
+    "type": "feeding",
+    "timestamp": "2026-03-25T20:31:50.923272",
+    "date": "2026-03-25",
+    "details": {
+      "feeding_type": "formula",
+      "duration_minutes": 15,
+      "amount_ml": 120
+    },
+    "images": [
+      "images/test_image_001.jpg",
+      "images/test_image_002.jpg"
+    ]
+  },
+  {
+    "id": "235f2f95-f326-48b2-8f17-a2950848bbc4",
+    "type": "urine",
+    "timestamp": "2026-03-25T20:32:37.628415",
+    "date": "2026-03-25",
+    "details": {
+      "count": 1,
+      "amount": "normal"
+    },
+    "images": []
+  },
+  {
+    "id": "7dfb09f1-ce1c-46a4-9d72-c5a42e6f252e",
+    "type": "feeding",
+    "timestamp": "2026-03-25T20:33:47.471878",
+    "date": "2026-03-25",
+    "details": {
+      "feeding_type": "formula",
+      "duration_minutes": 15,
+      "amount_ml": 120,
+      "side": "right"
+    },
+    "images": []
+  },
+  {
+    "id": "9d84ae25-0d38-44dd-887f-99ea7e2cd8b2",
+    "type": "bowel",
+    "timestamp": "2026-03-25T20:33:47.472314",
+    "date": "2026-03-25",
+    "details": {
+      "type": "正常",
+      "color": "黄色",
+      "amount": "中等"
+    },
+    "images": []
+  },
+  {
+    "id": "830ceeb5-0d87-4de1-82fe-0f23f92ba137",
+    "type": "urine",
+    "timestamp": "2026-03-25T20:33:47.472554",
+    "date": "2026-03-25",
+    "details": {
+      "count": 2,
+      "amount": "多"
+    },
+    "images": []
+  },
+  {
+    "id": "67c9dcaa-79aa-4099-8502-7f9a994ea7cc",
+    "type": "medication",
+    "timestamp": "2026-03-25T20:33:47.472796",
+    "date": "2026-03-25",
+    "details": {
+      "name": "维生素 D",
+      "dosage": "400IU",
+      "notes": ""
+    },
+    "images": []
+  },
+  {
+    "id": "9499eaea-4ada-4733-821a-238f03d6037b",
+    "type": "bathing",
+    "timestamp": "2026-03-25T20:33:47.473025",
+    "date": "2026-03-25",
+    "details": {
+      "water_temperature": "37.5",
+      "duration_minutes": 10,
+      "notes": "良好"
+    },
+    "images": []
+  },
+  {
+    "id": "9a4089ec-7826-4483-92c7-79b7c44efce0",
+    "type": "sleep",
+    "timestamp": "2026-03-25T20:33:47.473256",
+    "date": "2026-03-25",
+    "details": {
+      "sleep_start": "2026-03-25T14:00:00",
+      "sleep_end": "2026-03-25T16:00:00",
+      "nap": true
+    },
+    "images": []
+  },
+  {
+    "id": "23ab0ebe-6d6a-4f2f-8bb7-0f56d9a13ae1",
+    "type": "growth",
+    "timestamp": "2026-03-25T20:33:47.473503",
+    "date": "2026-03-25",
+    "details": {
+      "temperature": "36.8",
+      "weight_kg": "4.2",
+      "height_cm": "55"
+    },
+    "images": []
+  },
+  {
+    "id": "3e2f00e0-f8bc-46b6-ae6b-323bce728cd3",
+    "type": "feeding",
+    "timestamp": "2026-03-25T20:33:47.473791",
+    "date": "2026-03-25",
+    "details": {
+      "feeding_type": "breast",
+      "duration_minutes": 25,
+      "amount_ml": 0,
+      "side": "left"
+    },
+    "images": [
+      "images/baby_photo_001.jpg",
+      "images/baby_photo_002.jpg"
+    ]
+  }
+]

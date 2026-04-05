@@ -1,0 +1,11 @@
+{
+  "id": "baby-diary",
+  "skills": [
+    "./skills"
+  ],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

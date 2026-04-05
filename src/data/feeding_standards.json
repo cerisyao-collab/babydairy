@@ -1,0 +1,103 @@
+{
+  "version": "1.0.0",
+  "source": "《中国居民膳食指南2022》、《WHO婴儿喂养标准》、各省妇幼保健院新生儿喂养建议",
+  "updated": "2026-04-05",
+  "description": "0-6个月婴儿喂养标准参考值",
+  "standards": {
+    "day_1": {
+      "age_description": "出生第1天",
+      "feeding_times": {"min": 8, "max": 12, "avg": 10},
+      "milk_volume_ml": {"min": 30, "max": 60, "avg": 45},
+      "interval_hours": {"min": 2, "max": 3, "avg": 2.5},
+      "urine_count": {"min": 4, "max": 6, "avg": 5},
+      "bowel_count": {"min": 2, "max": 4, "avg": 3}
+    },
+    "day_3": {
+      "age_description": "出生第3天",
+      "feeding_times": {"min": 8, "max": 12, "avg": 10},
+      "milk_volume_ml": {"min": 60, "max": 90, "avg": 75},
+      "interval_hours": {"min": 2, "max": 3, "avg": 2.5},
+      "urine_count": {"min": 4, "max": 6, "avg": 5},
+      "bowel_count": {"min": 3, "max": 5, "avg": 4}
+    },
+    "day_7": {
+      "age_description": "出生第7天（1周）",
+      "feeding_times": {"min": 7, "max": 10, "avg": 8},
+      "milk_volume_ml": {"min": 150, "max": 200, "avg": 180},
+      "interval_hours": {"min": 2.5, "max": 3.5, "avg": 3},
+      "urine_count": {"min": 6, "max": 8, "avg": 7},
+      "bowel_count": {"min": 3, "max": 6, "avg": 4}
+    },
+    "day_14": {
+      "age_description": "出生第14天（2周）",
+      "feeding_times": {"min": 7, "max": 9, "avg": 8},
+      "milk_volume_ml": {"min": 300, "max": 450, "avg": 380},
+      "interval_hours": {"min": 2.5, "max": 3.5, "avg": 3},
+      "urine_count": {"min": 6, "max": 8, "avg": 7},
+      "bowel_count": {"min": 3, "max": 6, "avg": 4}
+    },
+    "day_30": {
+      "age_description": "出生第30天（1个月）",
+      "feeding_times": {"min": 6, "max": 8, "avg": 7},
+      "milk_volume_ml": {"min": 500, "max": 750, "avg": 650},
+      "interval_hours": {"min": 3, "max": 4, "avg": 3.5},
+      "urine_count": {"min": 6, "max": 10, "avg": 8},
+      "bowel_count": {"min": 3, "max": 6, "avg": 4}
+    },
+    "day_60": {
+      "age_description": "出生第60天（2个月）",
+      "feeding_times": {"min": 6, "max": 7, "avg": 6},
+      "milk_volume_ml": {"min": 600, "max": 900, "avg": 750},
+      "interval_hours": {"min": 3, "max": 4, "avg": 3.5},
+      "urine_count": {"min": 6, "max": 10, "avg": 8},
+      "bowel_count": {"min": 2, "max": 5, "avg": 3}
+    },
+    "day_90": {
+      "age_description": "出生第90天（3个月）",
+      "feeding_times": {"min": 5, "max": 7, "avg": 6},
+      "milk_volume_ml": {"min": 700, "max": 1000, "avg": 850},
+      "interval_hours": {"min": 3, "max": 4, "avg": 3.5},
+      "urine_count": {"min": 6, "max": 10, "avg": 8},
+      "bowel_count": {"min": 2, "max": 5, "avg": 3}
+    },
+    "day_120": {
+      "age_description": "出生第120天（4个月）",
+      "feeding_times": {"min": 5, "max": 6, "avg": 5},
+      "milk_volume_ml": {"min": 750, "max": 1050, "avg": 900},
+      "interval_hours": {"min": 3.5, "max": 4.5, "avg": 4},
+      "urine_count": {"min": 6, "max": 10, "avg": 8},
+      "bowel_count": {"min": 2, "max": 4, "avg": 3}
+    },
+    "day_150": {
+      "age_description": "出生第150天（5个月）",
+      "feeding_times": {"min": 5, "max": 6, "avg": 5},
+      "milk_volume_ml": {"min": 800, "max": 1100, "avg": 950},
+      "interval_hours": {"min": 3.5, "max": 4.5, "avg": 4},
+      "urine_count": {"min": 6, "max": 10, "avg": 8},
+      "bowel_count": {"min": 2, "max": 4, "avg": 3}
+    },
+    "day_180": {
+      "age_description": "出生第180天（6个月）",
+      "feeding_times": {"min": 4, "max": 6, "avg": 5},
+      "milk_volume_ml": {"min": 800, "max": 1200, "avg": 1000},
+      "interval_hours": {"min": 4, "max": 5, "avg": 4.5},
+      "urine_count": {"min": 6, "max": 10, "avg": 8},
+      "bowel_count": {"min": 2, "max": 4, "avg": 3}
+    }
+  },
+  "notes": {
+    "preterm": "早产儿需按矫正胎龄计算，矫正月龄 = 实际月龄 - (40-出生胎龄)/4",
+    "breastfed": "纯母乳喂养按需喂养，不计总量，以大小便次数和体重增长为判断标准",
+    "mixed": "混合喂养建议先喂母乳，后补充配方奶",
+    "formula": "配方奶喂养需严格按照说明冲调，避免过浓或过稀",
+    "growth_signs": "判断喂养是否充足的指标：体重增长正常、大小便次数达标、精神状态好",
+    "disclaimer": "本标准仅供参考，每个宝宝有个体差异，如有疑虑请咨询儿科医生"
+  },
+  "metric_descriptions": {
+    "feeding_times": "每日喂养次数",
+    "milk_volume_ml": "每日总奶量（毫升）",
+    "interval_hours": "喂养间隔时间（小时）",
+    "urine_count": "每日排尿次数",
+    "bowel_count": "每日排便次数"
+  }
+}

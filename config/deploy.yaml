@@ -1,0 +1,33 @@
+# OpenClaw 远程部署配置
+
+# SSH 配置
+ssh:
+  # 默认 SSH 用户名
+  user: root
+  # 默认 SSH 端口
+  port: 22
+  # SSH 超时时间（秒）
+  timeout: 10
+
+# 部署配置
+deploy:
+  # 默认远程安装目录
+  remote_dir: /opt/openclaw
+  # 是否使用 sudo
+  use_sudo: true
+
+# 版本管理
+version:
+  # 默认构建最新版本
+  default: latest
+  # 保留的旧版本数量
+  keep_versions: 3
+
+# 构建配置
+build:
+  # 输出目录
+  output_dir: ./dist
+  # 是否生成校验和
+  checksum: true
+  # 校验和算法
+  checksum_algorithm: sha256

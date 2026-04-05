@@ -1,0 +1,82 @@
+edition: 1.0.0
+name: baby-diary-api
+access: default
+
+vars:
+  region: cn-shanghai
+  serviceName: baby-diary-service
+  functionName: api
+  memorySize: 256
+  timeout: 30
+  runtime: python3.9
+
+services:
+  baby-diary-api:
+    component: fc
+    props:
+      region: ${vars.region}
+
+      # 服务配置
+      service:
+        name: ${vars.serviceName}
+        description: Baby Diary API Service
+        internetAccess: true  # 允许访问公网
+
+        # VPC 配置（用于访问 RDS）
+        vpcConfig:
+          vpcId: ${env:VPC_ID}
+          securityGroupId: ${env:SECURITY_GROUP_ID}
+          vswitchIds:
+            - ${env:VSWITCH_ID}
+
+        # 日志配置
+        logConfig:
+          project: baby-diary-logs
+          logstore: fc-logs
+
+      # 函数配置
+      function:
+        name: ${vars.functionName}
+        description: Baby Diary API Function
+        runtime: ${vars.runtime}
+        codeUri: ./
+        handler: src.api.index.handler
+        memorySize: ${vars.memorySize}
+        timeout: ${vars.timeout}
+
+        # 环境变量
+        environmentVariables:
+          DATABASE_URL: ${env:DATABASE_URL}
+          WECHAT_APP_ID: ${env:WECHAT_APP_ID}
+          WECHAT_APP_SECRET: ${env:WECHAT_APP_SECRET}
+          JWT_SECRET: ${env:JWT_SECRET}
+          JWT_ALGORITHM: HS256
+          JWT_EXPIRE_MINUTES: "10080"
+
+        # 实例配置
+        instanceConcurrency: 1  # 单实例并发数
+        instanceType: e1        # 弹性实例
+
+      # HTTP 触发器配置
+      triggers:
+        - name: httpTrigger
+          type: http
+          config:
+            authType: anonymous  # 匿名访问
+            methods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+              - HEAD
+              - PATCH
+
+      # 自定义域名配置（可选，生产环境启用）
+      # customDomains:
+      #   - domainName: api.babydiary.example.com
+      #     protocol: HTTP
+      #     routeConfigs:
+      #       - path: /*
+      #         serviceName: ${vars.serviceName}
+      #         functionName: ${vars.functionName}

@@ -1,0 +1,1331 @@
+"""
+Baby Diary - 新生儿日常记录技能
+
+提供新生儿记录管理功能：
+- record_create: 创建新记录
+- record_query: 查询记录
+- record_list: 列表某日记录
+"""
+
+import json
+import os
+import uuid
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+# 配置
+BASE_DIR = Path(__file__).parent
+# Check for data directory in Documents first, then use local directory
+DOCUMENTS_DIR = Path.home() / "Documents" / "baby-diary" / "records"
+if DOCUMENTS_DIR.exists():
+    RECORDS_DIR = DOCUMENTS_DIR
+else:
+    RECORDS_DIR = BASE_DIR / "records"
+IMAGES_DIR = RECORDS_DIR / "images"
+
+# Cache invalidation: track last index load time
+_index_cache: Optional[Dict[str, Any]] = None
+_index_mtime: float = 0.0
+
+# Duplicate record detection configuration
+DEFAULT_DUPLICATE_WINDOW_MINUTES = 5
+
+
+class DuplicateRecordError(Exception):
+    """Exception raised when duplicate record is detected within time window"""
+    def __init__(self, similar_records: List[Dict[str, Any]], message: str = ""):
+        self.similar_records = similar_records
+        self.message = message
+        super().__init__(self.message)
+
+# 支持的记录类型
+RECORD_TYPES = [
+    "feeding",      # 喂奶
+    "bowel",        # 大便
+    "urine",        # 小便
+    "medication",   # 营养品
+    "bathing",      # 洗澡
+    "sleep",        # 睡眠
+    "growth",       # 生长指标
+    "illness",      # 病情
+]
+
+# 记录类型中文名称
+RECORD_TYPE_NAMES = {
+    "feeding": "喂奶",
+    "bowel": "大便",
+    "urine": "小便",
+    "medication": "营养品",
+    "bathing": "洗澡",
+    "sleep": "睡眠",
+    "growth": "生长指标",
+    "illness": "病情",
+}
+
+# 记录类型详细字段
+RECORD_TYPE_DETAILS = {
+    "feeding": {
+        "name": "喂奶",
+        "fields": {
+            "feeding_type": "喂奶类型 (breast/formula)",
+            "duration_minutes": "时长（分钟）",
+            "amount_ml": "奶量（毫升）",
+            "side": "喂奶侧边 (left/right)",
+        },
+    },
+    "bowel": {
+        "name": "大便",
+        "fields": {
+            "type": "大便类型",
+            "color": "颜色",
+            "amount": "量",
+        },
+    },
+    "urine": {
+        "name": "小便",
+        "fields": {
+            "count": "次数",
+            "amount": "量",
+        },
+    },
+    "medication": {
+        "name": "营养品",
+        "fields": {
+            "name": "药品/补充剂名称",
+            "dosage": "剂量",
+            "notes": "备注",
+        },
+    },
+    "bathing": {
+        "name": "洗澡",
+        "fields": {
+            "water_temperature": "水温",
+            "duration_minutes": "时长（分钟）",
+            "notes": "备注",
+        },
+    },
+    "sleep": {
+        "name": "睡眠",
+        "fields": {
+            "sleep_start": "入睡时间",
+            "sleep_end": "醒来时间",
+            "nap": "是否小睡",
+        },
+    },
+    "growth": {
+        "name": "生长指标",
+        "fields": {
+            "temperature": "体温",
+            "weight_kg": "体重（公斤）",
+            "height_cm": "身长（厘米）",
+        },
+    },
+    "illness": {
+        "name": "病情",
+        "fields": {
+            "symptom": "症状描述",
+            "cause": "可能病因",
+            "diagnosis": "医生诊断",
+            "treatment": "治疗方案",
+            "severity": "严重程度 (轻/中/重)",
+            "temperature": "体温",
+            "hospital_visit": "是否就医",
+            "notes": "其他备注",
+        },
+    },
+}
+
+# 基础目录结构
+__all__ = [
+    "record_create",
+    "record_query",
+    "record_list",
+    "record_get",
+    "record_update",
+    "record_delete",
+    "init_storage",
+    "format_records_for_display",
+    "refresh_index",
+    "check_duplicate_records",
+    "format_duplicate_confirmation_message",
+    "DuplicateRecordError",
+    "DEFAULT_DUPLICATE_WINDOW_MINUTES",
+    # Daily summary functions
+    "daily_summary",
+    "compare_with_standards",
+    "get_birth_day",
+    "load_growth_standards",
+    "get_standard_for_day",
+    # Image viewing functions
+    "image_view",
+    "list_images",
+    "image_gallery",
+    "generate_thumbnail",
+    "THUMBNAIL_SIZE",
+]
+
+# Thumbnail configuration
+THUMBNAIL_SIZE = (100, 100)
+
+
+def init_storage() -> bool:
+    """初始化存储目录"""
+    try:
+        RECORDS_DIR.mkdir(parents=True, exist_ok=True)
+        IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+        return True
+    except Exception:
+        return False
+
+
+def get_record_file_path(date: datetime) -> Path:
+    """获取指定日期记录文件的路径 (YYYY-MM-DD.json)"""
+    year_month_day = date.strftime("%Y-%m-%d")
+    return RECORDS_DIR / f"{year_month_day}.json"
+
+
+def get_index_file_path() -> Path:
+    """获取索引文件路径"""
+    return RECORDS_DIR / "index.json"
+
+
+def load_records_from_file(file_path: Path) -> List[Dict[str, Any]]:
+    """从文件加载记录"""
+    if not file_path.exists():
+        return []
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return []
+
+
+def save_records_to_file(file_path: Path, records: List[Dict[str, Any]]) -> bool:
+    """保存记录到文件"""
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(records, f, ensure_ascii=False, indent=2)
+        return True
+    except IOError:
+        return False
+
+
+def load_index(force_refresh: bool = False) -> Dict[str, Any]:
+    """
+    加载索引文件（带缓存失效检查）
+
+    Args:
+        force_refresh: 如果为 True，强制重新加载索引
+
+    Returns:
+        索引字典
+    """
+    global _index_cache, _index_mtime
+
+    index_path = get_index_file_path()
+
+    # Check if we should use cached index
+    if not force_refresh and _index_cache is not None:
+        # Check if index file has been modified
+        if index_path.exists():
+            current_mtime = index_path.stat().st_mtime
+            if current_mtime == _index_mtime:
+                return _index_cache
+        else:
+            # Index file was deleted, reset cache
+            _index_cache = None
+            _index_mtime = 0.0
+
+    # Load fresh index
+    if not index_path.exists():
+        _index_cache = {"version": "1.0", "updated": datetime.now().isoformat(), "days": {}}
+    else:
+        try:
+            with open(index_path, "r", encoding="utf-8") as f:
+                _index_cache = json.load(f)
+            _index_mtime = index_path.stat().st_mtime
+        except (json.JSONDecodeError, IOError):
+            _index_cache = {"version": "1.0", "updated": datetime.now().isoformat(), "days": {}}
+            _index_mtime = 0.0
+
+    return _index_cache if _index_cache else {"version": "1.0", "updated": datetime.now().isoformat(), "days": {}}
+
+
+def refresh_index() -> Dict[str, Any]:
+    """
+    强制刷新索引（从磁盘重新加载）
+
+    Returns:
+        刷新后的索引字典
+    """
+    return load_index(force_refresh=True)
+
+
+def save_index(index: Dict[str, Any]) -> bool:
+    """保存索引文件"""
+    global _index_cache, _index_mtime
+    index_path = get_index_file_path()
+    index["updated"] = datetime.now().isoformat()
+    try:
+        with open(index_path, "w", encoding="utf-8") as f:
+            json.dump(index, f, ensure_ascii=False, indent=2)
+        # Update cache after successful save
+        _index_cache = index
+        _index_mtime = index_path.stat().st_mtime
+        return True
+    except IOError:
+        return False
+
+
+# Growth standards cache
+_standards_cache: Optional[Dict[str, Any]] = None
+
+
+def load_growth_standards() -> Dict[str, Any]:
+    """
+    加载婴儿生长发育标准值数据
+
+    Returns:
+        标准值字典
+    """
+    global _standards_cache
+    if _standards_cache is not None:
+        return _standards_cache
+
+    standards_file = BASE_DIR / "growth_standards.json"
+    if not standards_file.exists():
+        return {"standards": {}, "note": "标准值文件不存在"}
+
+    try:
+        with open(standards_file, "r", encoding="utf-8") as f:
+            _standards_cache = json.load(f)
+        return _standards_cache
+    except (json.JSONDecodeError, IOError):
+        return {"standards": {}, "note": "标准值文件读取失败"}
+
+
+def get_standard_for_day(day: int, metric: str) -> Optional[Dict[str, Any]]:
+    """
+    获取指定天数的某项指标标准值
+
+    Args:
+        day: 出生天数（从 1 开始）
+        metric: 指标名称 (weight_kg, height_cm, urine_count, bowel_count, feeding_times, milk_volume_ml)
+
+    Returns:
+        标准值字典 {min, max, avg} 或 None
+    """
+    standards = load_growth_standards()
+    if not standards.get("standards"):
+        return None
+
+    # 找到最接近的天数
+    day_key = f"day_{day}"
+    if day_key in standards["standards"]:
+        return standards["standards"][day_key].get(metric)
+
+    # 如果找不到确切天数，找最接近的
+    available_days = sorted([int(k.replace("day_", "")) for k in standards["standards"].keys()])
+    if not available_days:
+        return None
+
+    # 小于最小天数，返回第一天
+    if day < min(available_days):
+        return standards["standards"]["day_1"].get(metric)
+
+    # 大于最大天数，返回最后一天
+    if day > max(available_days):
+        last_day = f"day_{max(available_days)}"
+        return standards["standards"][last_day].get(metric)
+
+    # 找到区间
+    for i, d in enumerate(available_days):
+        if d > day:
+            # 返回前一个天数的数据
+            prev_day = f"day_{available_days[i-1]}"
+            return standards["standards"][prev_day].get(metric)
+
+    return None
+
+
+def get_birth_day(birth_date: datetime, target_date: Optional[datetime] = None) -> int:
+    """
+    计算宝宝出生天数
+
+    Args:
+        birth_date: 出生日期
+        target_date: 目标日期，默认为今天
+
+    Returns:
+        出生天数（出生当天为第 1 天）
+    """
+    if target_date is None:
+        target_date = datetime.now()
+
+    # 计算天数差
+    delta = target_date.date() - birth_date.date()
+    return delta.days + 1  # 出生当天为第 1 天
+
+
+def compare_with_standards(actual: Any, standard: Dict[str, Any], metric_name: str = "") -> Dict[str, Any]:
+    """
+    对比实际数据与标准值
+
+    Args:
+        actual: 实际值
+        standard: 标准值 {min, max, avg}
+        metric_name: 指标名称（用于输出）
+
+    Returns:
+        对比结果 {status: str, advice: str, difference: str}
+    """
+    if standard is None or actual is None:
+        return {"status": "未知", "advice": "无标准值或实际数据", "difference": ""}
+
+    min_val = standard.get("min", 0)
+    max_val = standard.get("max", 0)
+
+    if actual < min_val:
+        diff = ((min_val - actual) / min_val) * 100 if min_val > 0 else 0
+        return {
+            "status": "偏低",
+            "advice": "略低于标准范围，请持续关注，必要时咨询医生",
+            "difference": f"低于标准下限约 {diff:.1f}%"
+        }
+    elif actual > max_val:
+        diff = ((actual - max_val) / max_val) * 100 if max_val > 0 else 0
+        return {
+            "status": "偏高",
+            "advice": "略高于标准范围，请持续关注，必要时咨询医生",
+            "difference": f"高于标准上限约 {diff:.1f}%"
+        }
+    else:
+        return {
+            "status": "正常",
+            "advice": "发育良好，继续保持",
+            "difference": f"在标准范围内 ({min_val}-{max_val})"
+        }
+
+
+def check_duplicate_records(
+    record_type: str,
+    timestamp: datetime,
+    window_minutes: int = DEFAULT_DUPLICATE_WINDOW_MINUTES
+) -> List[Dict[str, Any]]:
+    """
+    检查时间窗口内是否存在相似记录
+
+    Args:
+        record_type: 记录类型
+        timestamp: 新记录的时间戳
+        window_minutes: 时间窗口（分钟），默认 5 分钟
+
+    Returns:
+        相似记录列表，如果为空则表示无重复
+    """
+    # 加载当日已有记录
+    file_path = get_record_file_path(timestamp)
+    records = load_records_from_file(file_path)
+
+    # 过滤同类型且在时间窗口内的记录
+    similar = []
+    for r in records:
+        r_time = datetime.fromisoformat(r["timestamp"])
+        if r["type"] == record_type and abs((timestamp - r_time).total_seconds()) <= window_minutes * 60:
+            similar.append(r)
+
+    return similar
+
+
+def format_duplicate_confirmation_message(similar_records: List[Dict[str, Any]]) -> str:
+    """
+    格式化重复记录的确认提示信息
+
+    Args:
+        similar_records: 相似记录列表
+
+    Returns:
+        格式化的提示消息
+    """
+    if not similar_records:
+        return ""
+
+    lines = ["检测到短时间内已有相似记录：", ""]
+    for i, r in enumerate(similar_records, 1):
+        ts = r.get("timestamp", "")[:16]  # 只显示到分钟
+        rec_type = RECORD_TYPE_NAMES.get(r["type"], r["type"])
+        details = r.get("details", {})
+        detail_str = ", ".join(f"{k}={v}" for k, v in details.items() if k != "timestamp")
+        lines.append(f"  {i}. [{ts}] {rec_type}: {detail_str}")
+
+    lines.append("")
+    lines.append("是否继续创建新记录？(确认/取消)")
+    return "\n".join(lines)
+
+
+def update_index_for_record(record: Dict[str, Any], action: str) -> bool:
+    """
+    更新索引（添加或移除记录）
+
+    Args:
+        record: 记录对象
+        action: "add" 或 "remove"
+    """
+    index = load_index()
+    date = record.get("date", "")
+    record_type = record.get("type", "")
+
+    if not date:
+        return False
+
+    if date not in index["days"]:
+        index["days"][date] = {
+            "file": f"{date}.json",
+            "count": 0,
+            "sizeBytes": 0,
+            "types": []
+        }
+
+    day_info = index["days"][date]
+
+    if action == "add":
+        day_info["count"] = day_info.get("count", 0) + 1
+        if record_type and record_type not in day_info.get("types", []):
+            day_info.setdefault("types", []).append(record_type)
+    elif action == "remove":
+        day_info["count"] = max(0, day_info.get("count", 0) - 1)
+
+    # 更新文件大小
+    file_path = RECORDS_DIR / f"{date}.json"
+    if file_path.exists():
+        day_info["sizeBytes"] = file_path.stat().st_size
+
+    # 如果 count 为 0，移除该日期条目
+    if day_info["count"] == 0:
+        del index["days"][date]
+
+    return save_index(index)
+
+
+def record_create(
+    record_type: str,
+    details: Dict[str, Any],
+    timestamp: Optional[str] = None,
+    images: Optional[List[str]] = None,
+    skip_confirmation: bool = False,
+    window_minutes: int = DEFAULT_DUPLICATE_WINDOW_MINUTES,
+) -> Dict[str, Any]:
+    """
+    创建新记录
+
+    Args:
+        record_type: 记录类型 (feeding, bowel, urine, medication, bathing, sleep, growth)
+        details: 类型特定的详情
+        timestamp: 时间戳 (ISO format), 默认当前时间
+        images: 图片路径列表
+        skip_confirmation: 是否跳过重复确认 (默认 False)
+        window_minutes: 重复检测时间窗口（分钟），默认 5 分钟
+
+    Returns:
+        创建的记录字典
+
+    Raises:
+        DuplicateRecordError: 当检测到重复记录且用户未确认时抛出
+    """
+    if record_type not in RECORD_TYPES:
+        raise ValueError(f"Invalid record type: {record_type}. Must be one of {RECORD_TYPES}")
+
+    if timestamp is None:
+        # 统一 timestamp 格式为 YYYY-MM-DDTHH:MM:SS（不带微秒）
+        timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
+    # 解析时间戳用于重复检测
+    ts_datetime = datetime.fromisoformat(timestamp)
+
+    # 检查重复记录（除非跳过确认）
+    if not skip_confirmation:
+        similar_records = check_duplicate_records(record_type, ts_datetime, window_minutes)
+        if similar_records:
+            raise DuplicateRecordError(
+                similar_records,
+                format_duplicate_confirmation_message(similar_records)
+            )
+
+    record = {
+        "id": str(uuid.uuid4()),
+        "type": record_type,
+        "timestamp": timestamp,
+        "date": datetime.fromisoformat(timestamp).strftime("%Y-%m-%d"),
+        "details": details,
+        "images": images or [],
+    }
+
+    # 加载现有记录
+    file_path = get_record_file_path(datetime.fromisoformat(timestamp))
+    records = load_records_from_file(file_path)
+
+    # 添加新记录并保存
+    records.append(record)
+    save_records_to_file(file_path, records)
+
+    # 更新索引
+    update_index_for_record(record, "add")
+
+    return record
+
+
+def record_query(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    record_type: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """
+    查询记录
+
+    Args:
+        start_date: 开始日期 (YYYY-MM-DD)
+        end_date: 结束日期 (YYYY-MM-DD)
+        record_type: 记录类型过滤
+
+    Returns:
+        匹配的记录列表
+    """
+    init_storage()
+
+    results = []
+
+    # 确定日期范围
+    if start_date:
+        start_dt = datetime.fromisoformat(start_date)
+    else:
+        start_dt = datetime(2020, 1, 1)  # 默认最早日期
+
+    if end_date:
+        end_dt = datetime.fromisoformat(end_date)
+    else:
+        end_dt = datetime.now()
+
+    # Convert to string for comparison
+    start_date_str = start_dt.strftime("%Y-%m-%d")
+    end_date_str = end_dt.strftime("%Y-%m-%d")
+
+    # Load index to get list of days with records
+    index = load_index()
+
+    # Iterate through days in index that fall within the date range
+    for day_str in sorted(index["days"].keys()):
+        if day_str < start_date_str or day_str > end_date_str:
+            continue
+
+        # Optional: skip if record type filter doesn't match
+        if record_type:
+            day_types = index["days"][day_str].get("types", [])
+            if record_type not in day_types:
+                continue
+
+        file_path = RECORDS_DIR / f"{day_str}.json"
+        records = load_records_from_file(file_path)
+
+        for record in records:
+            # 类型过滤
+            if record_type and record.get("type") != record_type:
+                continue
+
+            results.append(record)
+
+    # 按时间排序
+    results.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+
+    return results
+
+
+def record_list(date: Optional[str] = None) -> List[Dict[str, Any]]:
+    """
+    列出某日的所有记录
+
+    Args:
+        date: 日期 (YYYY-MM-DD), 默认今天
+
+    Returns:
+        该日的所有记录列表
+    """
+    if date is None:
+        date = datetime.now().strftime("%Y-%m-%d")
+
+    return record_query(start_date=date, end_date=date)
+
+
+def format_records_for_display(records: List[Dict[str, Any]]) -> str:
+    """
+    格式化记录为可读的文本
+
+    Args:
+        records: 记录列表
+
+    Returns:
+        格式化后的文本
+    """
+    if not records:
+        return "没有找到记录。"
+
+    lines = []
+    lines.append(f"找到 {len(records)} 条记录：")
+    lines.append("")
+
+    for record in records:
+        record_type = record.get("type", "unknown")
+        record_name = RECORD_TYPE_NAMES.get(record_type, record_type)
+        timestamp = record.get("timestamp", "unknown")
+        details = record.get("details", {})
+        images = record.get("images", [])
+
+        # 格式化时间
+        try:
+            dt = datetime.fromisoformat(timestamp)
+            time_str = dt.strftime("%Y-%m-%d %H:%M")
+        except Exception:
+            time_str = timestamp
+
+        # 格式化详情
+        details_str = format_details_for_display(record_type, details)
+
+        line = f"- [{time_str}] {record_name}: {details_str}"
+        if images:
+            line += f" 📷 {len(images)}张"
+        lines.append(line)
+
+    return "\n".join(lines)
+
+
+def format_details_for_display(record_type: str, details: Dict[str, Any]) -> str:
+    """
+    格式化详情为可读文本
+
+    Args:
+        record_type: 记录类型
+        details: 详情字典
+
+    Returns:
+        格式化后的详情文本
+    """
+    if not details:
+        return ""
+
+    type_details = RECORD_TYPE_DETAILS.get(record_type, {})
+    fields = type_details.get("fields", {})
+
+    parts = []
+    for key, description in fields.items():
+        if key in details:
+            value = details[key]
+            # 简单格式化值
+            if isinstance(value, bool):
+                value = "是" if value else "否"
+            elif isinstance(value, (list, dict)):
+                value = json.dumps(value, ensure_ascii=False)
+            parts.append(f"{description}: {value}")
+
+    return ", ".join(parts) if parts else json.dumps(details, ensure_ascii=False)
+
+
+def find_record_by_id(record_id: str) -> tuple[Optional[Dict[str, Any]], Optional[Path], Optional[int]]:
+    """
+    按 ID 查找记录
+
+    Args:
+        record_id: 记录 ID
+
+    Returns:
+        (记录对象，文件路径，索引) 或 (None, None, None) 如果未找到
+    """
+    init_storage()
+
+    # 遍历所有日期文件查找记录 (排除 index.json)
+    if not RECORDS_DIR.exists():
+        return None, None, None
+
+    for file_path in sorted(RECORDS_DIR.glob("*.json")):
+        # Skip index file
+        if file_path.name == "index.json":
+            continue
+        records = load_records_from_file(file_path)
+        for idx, record in enumerate(records):
+            if record.get("id") == record_id:
+                return record, file_path, idx
+
+    return None, None, None
+
+
+def record_get(record_id: str) -> Optional[Dict[str, Any]]:
+    """
+    按 ID 获取单条记录
+
+    Args:
+        record_id: 记录 ID
+
+    Returns:
+        记录字典，如果未找到返回 None
+    """
+    record, _, _ = find_record_by_id(record_id)
+    return record
+
+
+def record_update(
+    record_id: str,
+    details: Optional[Dict[str, Any]] = None,
+    timestamp: Optional[str] = None,
+    images: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """
+    更新现有记录
+
+    Args:
+        record_id: 记录 ID
+        details: 更新的详情字段（可选，部分或全部）
+        timestamp: 更新时间戳（可选）
+        images: 更新的图片列表（可选）
+
+    Returns:
+        更新后的记录字典
+
+    Raises:
+        ValueError: 记录不存在时
+    """
+    record, file_path, idx = find_record_by_id(record_id)
+
+    if record is None:
+        raise ValueError(f"Record not found: {record_id}")
+
+    # 更新字段
+    if details is not None:
+        record["details"] = details
+    if timestamp is not None:
+        record["timestamp"] = timestamp
+        # 如果时间戳变化，可能需要移动记录到不同的日期文件
+        new_date = datetime.fromisoformat(timestamp).strftime("%Y-%m-%d")
+        old_date = record["date"]
+        if new_date != old_date:
+            record["date"] = new_date
+            new_file_path = get_record_file_path(datetime.fromisoformat(timestamp))
+            # 从原文件删除并添加到新文件
+            records = load_records_from_file(file_path)
+            records.pop(idx)
+            save_records_to_file(file_path, records)
+            file_path = new_file_path
+            records = load_records_from_file(file_path)
+            records.append(record)
+            save_records_to_file(file_path, records)
+            # Update index for both dates
+            update_index_for_record(record, "add")  # Add to new date
+            # Note: We should also decrement old date, but for simplicity we'll rebuild index
+            return record
+    if images is not None:
+        record["images"] = images
+
+    # 保存到文件
+    records = load_records_from_file(file_path)
+    records[idx] = record
+    save_records_to_file(file_path, records)
+
+    return record
+
+
+def record_delete(record_id: str) -> bool:
+    """
+    删除记录
+
+    Args:
+        record_id: 记录 ID
+
+    Returns:
+        True 如果删除成功
+
+    Raises:
+        ValueError: 记录不存在时
+    """
+    record, file_path, idx = find_record_by_id(record_id)
+
+    if record is None:
+        raise ValueError(f"Record not found: {record_id}")
+
+    # 删除关联的图片
+    images = record.get("images", [])
+    for image_path in images:
+        full_path = IMAGES_DIR / image_path
+        if full_path.exists():
+            full_path.unlink()
+
+    # 从文件中删除记录
+    records = load_records_from_file(file_path)
+    records.pop(idx)
+    save_records_to_file(file_path, records)
+
+    # 更新索引
+    update_index_for_record(record, "remove")
+
+    return True
+
+
+# =============================================================================
+# Daily Summary and Growth Standards Functions
+# =============================================================================
+
+
+def daily_summary(date: Optional[str] = None, birth_date: Optional[str] = None) -> str:
+    """
+    生成每日近况总结，包含与标准值的对比分析
+
+    Args:
+        date: 日期 (YYYY-MM-DD), 默认为今天
+        birth_date: 宝宝出生日期 (YYYY-MM-DD), 用于计算出生天数
+
+    Returns:
+        格式化后的总结报告
+    """
+    if date is None:
+        date = datetime.now().strftime("%Y-%m-%d")
+
+    # 获取当日所有记录
+    records = record_query(start_date=date, end_date=date)
+
+    if not records:
+        return f"【{date}】 今日无记录\n\n请先添加宝宝的日常记录。"
+
+    # 计算出生天数
+    birth_day = None
+    if birth_date:
+        try:
+            bd = datetime.strptime(birth_date, "%Y-%m-%d")
+            target = datetime.strptime(date, "%Y-%m-%d")
+            birth_day = get_birth_day(bd, target)
+        except ValueError:
+            birth_day = None
+
+    # 分类统计
+    stats = {
+        "feeding": [],
+        "bowel": [],
+        "urine": [],
+        "growth": [],
+        "medication": [],
+        "bathing": [],
+        "sleep": [],
+        "illness": [],
+    }
+
+    for r in records:
+        rtype = r.get("type", "unknown")
+        if rtype in stats:
+            stats[rtype].append(r)
+
+    # 构建总结
+    lines = []
+    lines.append(f"【{date}】 宝宝每日近况总结")
+    if birth_day:
+        lines.append(f"出生天数：第 {birth_day} 天")
+    lines.append("")
+    lines.append(f"今日记录总数：{len(records)} 条")
+    lines.append("")
+
+    # 喂养情况
+    feeding_records = stats["feeding"]
+    if feeding_records:
+        total_feeding = len(feeding_records)
+        total_milk = sum(r.get("details", {}).get("amount_ml", 0) for r in feeding_records)
+        breast_count = sum(1 for r in feeding_records if r.get("details", {}).get("feeding_type") == "breast")
+        formula_count = sum(1 for r in feeding_records if r.get("details", {}).get("feeding_type") in ["formula", "water_formula"])
+
+        lines.append("🍼 喂养情况")
+        lines.append(f"  喂养次数：{total_feeding} 次")
+        if total_milk > 0:
+            lines.append(f"  总奶量：{total_milk} ml")
+        if breast_count > 0:
+            lines.append(f"  亲喂：{breast_count} 次")
+        if formula_count > 0:
+            lines.append(f"  瓶喂：{formula_count} 次")
+
+        # 对比标准值
+        if birth_day:
+            std_feeding = get_standard_for_day(birth_day, "feeding_times")
+            std_milk = get_standard_for_day(birth_day, "milk_volume_ml")
+            if std_feeding:
+                feeding_analysis = compare_with_standards(total_feeding, std_feeding, "喂养次数")
+                lines.append(f"  对比标准：{feeding_analysis['status']} ({feeding_analysis['difference']})")
+                lines.append(f"  建议：{feeding_analysis['advice']}")
+        lines.append("")
+
+    # 排泄情况
+    urine_records = stats["urine"]
+    bowel_records = stats["bowel"]
+
+    if urine_records or bowel_records:
+        urine_count = sum(r.get("details", {}).get("count", 1) for r in urine_records)
+        bowel_count = len(bowel_records)
+
+        lines.append("💩 排泄情况")
+        if urine_records:
+            lines.append(f"  小便：{urine_count} 次")
+        if bowel_records:
+            colors = [r.get("details", {}).get("color", "") for r in bowel_records if r.get("details", {}).get("color")]
+            colors_str = ", ".join(colors) if colors else ""
+            lines.append(f"  大便：{bowel_count} 次" + (f" ({colors_str})" if colors_str else ""))
+
+        # 对比标准值
+        if birth_day:
+            if urine_records:
+                std_urine = get_standard_for_day(birth_day, "urine_count")
+                if std_urine:
+                    urine_analysis = compare_with_standards(urine_count, std_urine, "排尿次数")
+                    lines.append(f"  排尿对比：{urine_analysis['status']} ({urine_analysis['difference']})")
+            if bowel_records:
+                std_bowel = get_standard_for_day(birth_day, "bowel_count")
+                if std_bowel:
+                    bowel_analysis = compare_with_standards(bowel_count, std_bowel, "大便次数")
+                    lines.append(f"  大便对比：{bowel_analysis['status']} ({bowel_analysis['difference']})")
+        lines.append("")
+
+    # 生长指标
+    growth_records = stats["growth"]
+    if growth_records:
+        lines.append("📏 生长指标")
+        for r in growth_records:
+            details = r.get("details", {})
+            ts = r.get("timestamp", "")[:16]
+            parts = []
+            if "weight_kg" in details:
+                parts.append(f"体重 {details['weight_kg']} kg")
+            if "height_cm" in details:
+                parts.append(f"身长 {details['height_cm']} cm")
+            if "temperature" in details:
+                parts.append(f"体温 {details['temperature']}°C")
+            if parts:
+                lines.append(f"  [{ts}] {', '.join(parts)}")
+
+            # 对比标准值
+            if birth_day:
+                if "weight_kg" in details:
+                    std_weight = get_standard_for_day(birth_day, "weight_kg")
+                    if std_weight:
+                        weight_analysis = compare_with_standards(details["weight_kg"], std_weight, "体重")
+                        lines.append(f"    体重评估：{weight_analysis['status']} - {weight_analysis['advice']}")
+                if "height_cm" in details:
+                    std_height = get_standard_for_day(birth_day, "height_cm")
+                    if std_height:
+                        height_analysis = compare_with_standards(details["height_cm"], std_height, "身长")
+                        lines.append(f"    身长评估：{height_analysis['status']} - {height_analysis['advice']}")
+        lines.append("")
+
+    # 其他记录
+    if stats["medication"]:
+        lines.append("💊 营养品")
+        for r in stats["medication"]:
+            details = r.get("details", {})
+            name = details.get("name", "")
+            dosage = details.get("dosage", "")
+            if name:
+                lines.append(f"  {name}: {dosage}")
+        lines.append("")
+
+    if stats["bathing"]:
+        lines.append("🛁 洗澡")
+        lines.append(f"  {len(stats['bathing'])} 次")
+        lines.append("")
+
+    if stats["sleep"]:
+        lines.append("😴 睡眠")
+        lines.append(f"  {len(stats['sleep'])} 条记录")
+        lines.append("")
+
+    if stats["illness"]:
+        lines.append("🤒 病情")
+        for r in stats["illness"]:
+            details = r.get("details", {})
+            symptom = details.get("symptom", "")
+            if symptom:
+                lines.append(f"  症状：{symptom}")
+        lines.append("")
+
+    # 综合建议
+    lines.append("💡 综合建议")
+    lines.append("  以上数据仅供参考，每个宝宝都有自己的成长节奏。")
+    lines.append("  如有疑虑，请咨询儿科医生。")
+
+    return "\n".join(lines)
+
+
+# =============================================================================
+# Image Viewing Functions
+# =============================================================================
+
+SUPPORTED_IMAGE_FORMATS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif'}
+
+
+def get_image_full_path(image_filename: str) -> Path:
+    """Get the full path for an image filename"""
+    return IMAGES_DIR / image_filename
+
+
+def is_supported_image_format(image_path: Path) -> bool:
+    """Check if the image has a supported format"""
+    return image_path.suffix.lower() in SUPPORTED_IMAGE_FORMATS
+
+
+def generate_thumbnail(image_path: str, size: tuple = None) -> Optional[str]:
+    """
+    Generate a thumbnail for an image
+
+    Args:
+        image_path: Path to the source image (relative to IMAGES_DIR or absolute)
+        size: Maximum thumbnail size (default: THUMBNAIL_SIZE)
+
+    Returns:
+        Path to the generated thumbnail (relative to IMAGES_DIR), or None if failed
+    """
+    if size is None:
+        size = THUMBNAIL_SIZE
+
+    # Handle both relative and absolute paths
+    if Path(image_path).is_absolute():
+        source_path = Path(image_path)
+        rel_path = Path(image_path).relative_to(IMAGES_DIR) if str(image_path).startswith(str(IMAGES_DIR)) else Path(image_path).name
+    else:
+        source_path = IMAGES_DIR / image_path
+        rel_path = Path(image_path)
+
+    if not source_path.exists():
+        return None
+
+    # Create thumbnail filename
+    thumb_filename = f"{rel_path.stem}_thumb{rel_path.suffix}"
+    thumb_path = IMAGES_DIR / "thumbnails" / thumb_filename
+
+    # Check if thumbnail already exists and is newer than source
+    if thumb_path.exists():
+        try:
+            if thumb_path.stat().st_mtime >= source_path.stat().st_mtime:
+                return str(Path("thumbnails") / thumb_filename)
+        except OSError:
+            pass
+
+    try:
+        from PIL import Image
+
+        # Handle HEIC/HEIF formats
+        if source_path.suffix.lower() in {'.heic', '.heif'}:
+            try:
+                from pillow_heif import HeifImagePlugin
+                HeifImagePlugin.register_heif_opener()
+            except ImportError:
+                # HEIF support not available, try to open anyway
+                pass
+
+        with Image.open(source_path) as img:
+            # Convert to RGB if necessary (for PNG with transparency)
+            if img.mode in ('RGBA', 'LA', 'P'):
+                img = img.convert('RGB')
+
+            # Generate thumbnail maintaining aspect ratio
+            img.thumbnail(size, Image.Resampling.LANCZOS)
+
+            # Ensure thumbnails directory exists
+            thumb_dir = thumb_path.parent
+            thumb_dir.mkdir(parents=True, exist_ok=True)
+
+            # Save thumbnail
+            img.save(thumb_path, "JPEG", quality=85)
+
+        return str(Path("thumbnails") / thumb_filename)
+
+    except ImportError:
+        # Pillow not installed
+        return None
+    except Exception:
+        # Any other error during thumbnail generation
+        return None
+
+
+def image_view(record_id: str, image_index: int = 0) -> Dict[str, Any]:
+    """
+    View a single image from a record
+
+    Args:
+        record_id: The record ID to view image from
+        image_index: Index of the image to view (default: 0)
+
+    Returns:
+        Dictionary with 'success', 'image_path', 'message', and 'markdown' keys
+    """
+    record = record_get(record_id)
+
+    if not record:
+        return {
+            "success": False,
+            "message": f"Record not found: {record_id}"
+        }
+
+    images = record.get("images", [])
+
+    if not images:
+        return {
+            "success": False,
+            "message": "No images attached to this record"
+        }
+
+    if image_index < 0 or image_index >= len(images):
+        return {
+            "success": False,
+            "message": f"Image index {image_index} out of range. Record has {len(images)} image(s)."
+        }
+
+    image_filename = images[image_index]
+    image_path = get_image_full_path(image_filename)
+
+    if not image_path.exists():
+        return {
+            "success": False,
+            "message": f"Image file not found: {image_filename}"
+        }
+
+    if not is_supported_image_format(image_path):
+        return {
+            "success": False,
+            "message": f"Unsupported image format: {image_path.suffix}"
+        }
+
+    # Return markdown for displaying the image
+    return {
+        "success": True,
+        "image_index": image_index,
+        "total_images": len(images),
+        "image_path": str(image_path),
+        "message": f"Image {image_index + 1} of {len(images)}",
+        "markdown": f"![Record Image {image_index + 1}]({image_path})"
+    }
+
+
+def list_images(record_id: str) -> Dict[str, Any]:
+    """
+    List all images for a record with thumbnails
+
+    Args:
+        record_id: The record ID to list images from
+
+    Returns:
+        Dictionary with 'success', 'images', 'count', and 'markdown' keys
+    """
+    record = record_get(record_id)
+
+    if not record:
+        return {
+            "success": False,
+            "message": f"Record not found: {record_id}"
+        }
+
+    images = record.get("images", [])
+
+    if not images:
+        return {
+            "success": False,
+            "message": "No images attached to this record"
+        }
+
+    result_images = []
+    for idx, image_filename in enumerate(images):
+        image_path = get_image_full_path(image_filename)
+        thumb_path = None
+
+        if image_path.exists():
+            thumb_rel = generate_thumbnail(str(image_filename))
+            if thumb_rel:
+                thumb_path = str(IMAGES_DIR / thumb_rel)
+
+        result_images.append({
+            "index": idx,
+            "filename": image_filename,
+            "path": str(image_path),
+            "thumbnail_path": thumb_path,
+            "exists": image_path.exists()
+        })
+
+    # Build markdown output
+    lines = [f"**Images for record {record_id}** ({len(images)} total)"]
+    lines.append("")
+
+    for img in result_images:
+        if img["exists"]:
+            display_path = img["thumbnail_path"] if img["thumbnail_path"] else img["path"]
+            lines.append(f"**{img['index'] + 1}.** {img['filename']}")
+            lines.append(f"![Thumbnail]({display_path})")
+            lines.append("")
+        else:
+            lines.append(f"**{img['index'] + 1}.** {img['filename']} (file not found)")
+            lines.append("")
+
+    return {
+        "success": True,
+        "count": len(images),
+        "images": result_images,
+        "message": f"Found {len(images)} image(s)",
+        "markdown": "\n".join(lines)
+    }
+
+
+def image_gallery(record_id: str) -> Dict[str, Any]:
+    """
+    Display multiple images from a record in a gallery/grid format
+
+    Args:
+        record_id: The record ID to display images from
+
+    Returns:
+        Dictionary with 'success', 'images', 'count', and 'markdown' keys
+    """
+    record = record_get(record_id)
+
+    if not record:
+        return {
+            "success": False,
+            "message": f"Record not found: {record_id}"
+        }
+
+    images = record.get("images", [])
+
+    if not images:
+        return {
+            "success": False,
+            "message": "No images attached to this record"
+        }
+
+    # Build markdown gallery output
+    lines = [f"**Gallery: {len(images)} image(s)**"]
+    lines.append("")
+
+    # Single image - display full size
+    if len(images) == 1:
+        image_path = get_image_full_path(images[0])
+        if image_path.exists():
+            lines.append(f"![Image 1 of 1]({image_path})")
+        else:
+            lines.append("Image file not found")
+    else:
+        # Multiple images - display as grid (using numbered list with thumbnails)
+        for idx, image_filename in enumerate(images):
+            image_path = get_image_full_path(image_filename)
+            if image_path.exists():
+                # Try to show thumbnail
+                thumb_rel = generate_thumbnail(str(image_filename))
+                display_path = str(IMAGES_DIR / thumb_rel) if thumb_rel else str(image_path)
+                lines.append(f"**Image {idx + 1} of {len(images)}:** {image_filename}")
+                lines.append(f"![Image {idx + 1}]({display_path})")
+                lines.append("")
+            else:
+                lines.append(f"**Image {idx + 1} of {len(images)}:** {image_filename} (file not found)")
+                lines.append("")
+
+    return {
+        "success": True,
+        "count": len(images),
+        "message": f"Gallery with {len(images)} image(s)",
+        "markdown": "\n".join(lines)
+    }

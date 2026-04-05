@@ -1,0 +1,49 @@
+# Terraform variables example
+# Copy this file to terraform.tfvars and fill in your values
+
+# ==================== Basic Configuration ====================
+
+region = "cn-hangzhou"
+availability_zone = "cn-hangzhou-h"
+instance_name = "baby-diary"
+
+# ==================== Database Configuration ====================
+
+db_username = "baby_diary"
+db_password = ""  # Set via environment variable: TF_VAR_db_password
+db_name = "baby_diary"
+
+# ==================== RDS Configuration ====================
+
+rds_instance_type = "serverless.n4.small.1"
+rds_storage_size = 20
+
+# ==================== FC Configuration ====================
+
+fc_service_name = "baby-diary-service"
+fc_function_name = "api"
+fc_memory_size = 256
+fc_timeout = 30
+
+# ==================== OIDC Configuration for GitHub Actions ====================
+
+# GitHub OIDC public key fingerprints
+# Obtain from: https://token.actions.githubusercontent.com/.well-known/jwks
+# Run: curl -s https://token.actions.githubusercontent.com/.well-known/jwks | jq -r '.keys[].x5c[]' | while read cert; do echo "$cert" | openssl x509 -fingerprint -noout | cut -d= -f2 | tr -d ':' ; done
+github_oidc_fingerprints = [
+  # Replace with actual fingerprints, e.g.:
+  # "a0sha1fingerprint1...",
+  # "a0sha1fingerprint2...",
+]
+
+# GitHub repository in format 'owner/repo'
+github_repository = "your-org/babyjour"  # TODO: Update to your actual repository
+
+# ==================== Application Secrets ====================
+# These can be set via environment variables:
+# TF_VAR_wechat_app_id, TF_VAR_wechat_app_secret, TF_VAR_jwt_secret, etc.
+
+wechat_app_id = ""
+wechat_app_secret = ""
+jwt_secret = ""
+dashscope_api_key = ""
