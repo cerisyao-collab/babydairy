@@ -25,27 +25,22 @@ fi
 echo "Getting OIDC token from GitHub..."
 
 # Initialize aliyun CLI profile (required before any API call)
-# Use interactive mode bypass with dummy credentials
 mkdir -p ~/.aliyun
 cat > ~/.aliyun/config.json << EOF
 {
   "current": "default",
-  "profiles": {
-    "default": {
+  "profiles": [
+    {
+      "name": "default",
       "mode": "AK",
       "access_key_id": "",
       "access_key_secret": "",
       "sts_token": "",
-      "ram_role_name": "",
-      "ram_role_arn": "",
-      "ram_session_name": "",
-      "expired_seconds": 0,
-      "verified": false,
       "region_id": "$REGION",
       "output_format": "json",
       "language": "en"
     }
-  }
+  ]
 }
 EOF
 
