@@ -35,46 +35,28 @@ fi
 echo "OIDC token obtained (length: ${#OIDC_TOKEN})"
 
 # Call AssumeRoleWithOIDC API directly via HTTP
-# API endpoint: https://sts.aliyuncs.com
+# This API does NOT require signature or Timestamp according to documentation
+# But we'll include minimal required parameters
 echo "Assuming role: $ROLE_ARN"
 
-# Build request parameters
-PARAMS="Action=AssumeRoleWithOIDC"
-PARAMS="$PARAMS&RoleArn=$ROLE_ARN"
-PARAMS="$PARAMS&OIDCProviderArn=$OIDC_PROVIDER_ARN"
-PARAMS="$PARAMS&OIDCToken=$OIDC_TOKEN"
-PARAMS="$PARAMS&RoleSessionName=$SESSION_NAME"
-PARAMS="$PARAMS&DurationSeconds=3600"
-PARAMS="$PARAMS&Version=2015-04-01"
-PARAMS="$PARAMS&Format=JSON"
-PARAMS="$PARAMS&RegionId=$REGION"
+STS_ENDPOINT="https://sts.aliyuncs.com"  # Global endpoint
 
-# Make HTTP request to STS API
-STS_ENDPOINT="https://sts.${REGION}.aliyuncs.com"
-
-# Build request parameters (AssumeRoleWithOIDC doesn't need signature)
-TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-NONCE=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
-
-RESPONSE=$(curl -sSL -G "$STS_ENDPOINT" \
-  --data-urlencode "Action=AssumeRoleWithOIDC" \
-  --data-urlencode "Version=2015-04-01" \
-  --data-urlencode "Format=JSON" \
-  --data-urlencode "RegionId=$REGION" \
-  --data-urlencode "Timestamp=$TIMESTAMP" \
-  --data-urlencode "SignatureMethod=HMAC-SHA1" \
-  --data-urlencode "SignatureVersion=1.0" \
-  --data-urlencode "SignatureNonce=$NONCE" \
-  --data-urlencode "RoleArn=$ROLE_ARN" \
-  --data-urlencode "OIDCProviderArn=$OIDC_PROVIDER_ARN" \
-  --data-urlencode "OIDCToken=$OIDC_TOKEN" \
-  --data-urlencode "RoleSessionName=$SESSION_NAME" \
-  --data-urlencode "DurationSeconds=3600")
+# Build request body for POST
+RESPONSE=$(curl -sSL -X POST "$STS_ENDPOINT" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "Action=AssumeRoleWithOIDC" \
+  -d "Version=2015-04-01" \
+  -d "Format=JSON" \
+  -d "RoleArn=$ROLE_ARN" \
+  -d "OIDCProviderArn=$OIDC_PROVIDER_ARN" \
+  -d "OIDCToken=$OIDC_TOKEN" \
+  -d "RoleSessionName=$SESSION_NAME" \
+  -d "DurationSeconds=3600")
 
 # Check for error
 if echo "$RESPONSE" | jq -e '.Error' > /dev/null 2>&1; then
   echo "Error: API call failed"
-  echo "$RESPONSE"
+  echo "$RESPONSE" | jq '.'
   exit 1
 fi
 
@@ -113,16 +95,16 @@ cat > ~/.aliyun/config.json << EOF
 }
 EOF
 
-# Also export as environment variables for other tools
+# Set environment variables for other tools
 export ALIYUN_ACCESS_KEY_ID="$ACCESS_KEY_ID"
 export ALIYUN_ACCESS_KEY_SECRET="$ACCESS_KEY_SECRET"
 export ALIYUN_SECURITY_TOKEN="$SECURITY_TOKEN"
 
-# Set environment variables for Terraform/Serverless Devs
 export ALICLOUD_ACCESS_KEY="$ACCESS_KEY_ID"
 export ALICLOUD_SECRET_KEY="$ACCESS_KEY_SECRET"
 export ALICLOUD_SECURITY_TOKEN="$SECURITY_TOKEN"
 
+# Mask secrets in GitHub Actions output
 echo "::add-mask::$ACCESS_KEY_ID"
 echo "::add-mask::$ACCESS_KEY_SECRET"
 echo "::add-mask::$SECURITY_TOKEN"
