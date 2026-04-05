@@ -18,6 +18,7 @@ permissions:
 
 env:
   TERRAFORM_VERSION: '1.6.0'
+  ALIYUN_REGION: 'cn-shanghai'
 
 jobs:
   plan:
@@ -28,13 +29,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure Aliyun Credentials (OIDC)
-        uses: aliyun/configure-credentials-action@v1
-        with:
-          role-to-assume: ${{ secrets.TERRAFORM_DEPLOY_ROLE_ARN }}
-          oidc-provider-arn: ${{ secrets.OIDC_PROVIDER_ARN }}
-          audience: github-actions
-          role-session-name: terraform-plan-${{ github.run_id }}
+      - name: Install Aliyun CLI
+        run: |
+          wget -q https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz
+          tar -xzf aliyun-cli-linux-latest-amd64.tgz
+          sudo mv aliyun /usr/local/bin/
+          aliyun version
+
+      - name: OIDC Authentication
+        env:
+          ROLE_TO_ASSUME: ${{ secrets.TERRAFORM_DEPLOY_ROLE_ARN }}
+          OIDC_PROVIDER_ARN: ${{ secrets.OIDC_PROVIDER_ARN }}
+          OIDC_AUDIENCE: github-actions
+          ROLE_SESSION_NAME: terraform-plan-${{ github.run_id }}
+        run: |
+          chmod +x scripts/oidc_auth.sh
+          ./scripts/oidc_auth.sh
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -86,13 +96,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure Aliyun Credentials (OIDC)
-        uses: aliyun/configure-credentials-action@v1
-        with:
-          role-to-assume: ${{ secrets.TERRAFORM_DEPLOY_ROLE_ARN }}
-          oidc-provider-arn: ${{ secrets.OIDC_PROVIDER_ARN }}
-          audience: github-actions
-          role-session-name: terraform-apply-${{ github.run_id }}
+      - name: Install Aliyun CLI
+        run: |
+          wget -q https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz
+          tar -xzf aliyun-cli-linux-latest-amd64.tgz
+          sudo mv aliyun /usr/local/bin/
+          aliyun version
+
+      - name: OIDC Authentication
+        env:
+          ROLE_TO_ASSUME: ${{ secrets.TERRAFORM_DEPLOY_ROLE_ARN }}
+          OIDC_PROVIDER_ARN: ${{ secrets.OIDC_PROVIDER_ARN }}
+          OIDC_AUDIENCE: github-actions
+          ROLE_SESSION_NAME: terraform-apply-${{ github.run_id }}
+        run: |
+          chmod +x scripts/oidc_auth.sh
+          ./scripts/oidc_auth.sh
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
