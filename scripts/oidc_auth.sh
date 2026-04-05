@@ -16,9 +16,6 @@ if [ -z "$ROLE_ARN" ] || [ -z "$OIDC_PROVIDER_ARN" ]; then
   exit 1
 fi
 
-# Configure aliyun CLI region first (required before any API call)
-aliyun configure set --region "$REGION"
-
 # Get OIDC token from GitHub Actions environment
 if [ -z "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ] || [ -z "$ACTIONS_ID_TOKEN_REQUEST_URL" ]; then
   echo "Error: This script must run in GitHub Actions environment"
@@ -37,12 +34,11 @@ fi
 
 echo "OIDC token obtained (length: ${#OIDC_TOKEN})"
 
-# Extract OIDC Provider name from ARN
-OIDC_PROVIDER_NAME=$(echo "$OIDC_PROVIDER_ARN" | rev | cut -d'/' -f1 | rev)
-
-# Call AssumeRoleWithOIDC API
+# Call AssumeRoleWithOIDC API with region parameter
+# This API doesn't require pre-configured credentials
 echo "Assuming role: $ROLE_ARN"
 ASSUME_RESULT=$(aliyun sts AssumeRoleWithOIDC \
+  --RegionId "$REGION" \
   --RoleArn "$ROLE_ARN" \
   --OIDCProviderArn "$OIDC_PROVIDER_ARN" \
   --OIDCToken "$OIDC_TOKEN" \
