@@ -51,15 +51,25 @@ PARAMS="$PARAMS&RegionId=$REGION"
 
 # Make HTTP request to STS API
 STS_ENDPOINT="https://sts.${REGION}.aliyuncs.com"
-RESPONSE=$(curl -sSL -G "$STS_ENDPOINT" --data-urlencode "Action=AssumeRoleWithOIDC" \
+
+# Build request parameters (AssumeRoleWithOIDC doesn't need signature)
+TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+NONCE=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+
+RESPONSE=$(curl -sSL -G "$STS_ENDPOINT" \
+  --data-urlencode "Action=AssumeRoleWithOIDC" \
+  --data-urlencode "Version=2015-04-01" \
+  --data-urlencode "Format=JSON" \
+  --data-urlencode "RegionId=$REGION" \
+  --data-urlencode "Timestamp=$TIMESTAMP" \
+  --data-urlencode "SignatureMethod=HMAC-SHA1" \
+  --data-urlencode "SignatureVersion=1.0" \
+  --data-urlencode "SignatureNonce=$NONCE" \
   --data-urlencode "RoleArn=$ROLE_ARN" \
   --data-urlencode "OIDCProviderArn=$OIDC_PROVIDER_ARN" \
   --data-urlencode "OIDCToken=$OIDC_TOKEN" \
   --data-urlencode "RoleSessionName=$SESSION_NAME" \
-  --data-urlencode "DurationSeconds=3600" \
-  --data-urlencode "Version=2015-04-01" \
-  --data-urlencode "Format=JSON" \
-  --data-urlencode "RegionId=$REGION")
+  --data-urlencode "DurationSeconds=3600")
 
 # Check for error
 if echo "$RESPONSE" | jq -e '.Error' > /dev/null 2>&1; then
