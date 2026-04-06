@@ -34,6 +34,10 @@ fi
 
 echo "OIDC token obtained (length: ${#OIDC_TOKEN})"
 
+# Debug: Decode JWT payload to check claims
+echo "Token payload (debug):"
+echo "$OIDC_TOKEN" | cut -d'.' -f2 | base64 -d 2>/dev/null | jq '.' || echo "Could not decode token"
+
 # Call AssumeRoleWithOIDC API directly via HTTP
 # This API does NOT require signature or Timestamp according to documentation
 # But we'll include minimal required parameters
