@@ -1,0 +1,163 @@
+<!--pages/index/index.wxml-->
+<view class="container">
+  <!-- 标题 -->
+  <view class="header">
+    <view class="title">👶 BabyNote</view>
+    <view class="subtitle">婴儿喂养记录</view>
+  </view>
+
+  <!-- 记录按钮 -->
+  <view class="action-buttons">
+    <view class="action-btn feeding" bindtap="recordBreast">
+      <view class="btn-icon">🤱</view>
+      <view class="btn-text">母乳</view>
+    </view>
+    
+    <view class="action-btn formula" bindtap="openFormulaModal">
+      <view class="btn-icon">🥛</view>
+      <view class="btn-text">奶粉</view>
+    </view>
+    
+    <view class="action-btn diaper" bindtap="openDiaperModal">
+      <view class="btn-icon">💩</view>
+      <view class="btn-text">换尿布</view>
+    </view>
+    
+    <view class="action-btn supplement" bindtap="openSupplementModal">
+      <view class="btn-icon">💊</view>
+      <view class="btn-text">营养品</view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading">加载中...</view>
+</view>
+
+<!-- 奶粉弹窗 -->
+<view class="modal-mask" wx:if="{{showFeedingModal}}" bindtap="closeFeedingModal">
+  <view class="modal-content" catchtap="">
+    <view class="modal-header">
+      <text class="modal-title">🥛 记录奶粉喂养</text>
+    </view>
+    
+    <view class="modal-body">
+      <view class="option-group">
+        <view class="option-label">奶量（毫升）</view>
+        <view class="slider-container">
+          <slider 
+            min="50" 
+            max="300" 
+            step="10" 
+            value="{{formulaAmount}}" 
+            block-size="24" 
+            activeColor="#667eea"
+            bindchange="onFormulaAmountChange" />
+          <view class="slider-value">{{formulaAmount}} ml</view>
+        </view>
+        <view class="slider-marks">
+          <text>50ml</text>
+          <text>100ml</text>
+          <text>150ml</text>
+          <text>200ml</text>
+          <text>250ml</text>
+          <text>300ml</text>
+        </view>
+      </view>
+    </view>
+    
+    <view class="modal-footer">
+      <button class="modal-btn cancel" bindtap="closeFeedingModal">取消</button>
+      <button class="modal-btn confirm" bindtap="confirmFeeding">确认</button>
+    </view>
+  </view>
+</view>
+
+<!-- 换尿布弹窗 -->
+<view class="modal-mask" wx:if="{{showDiaperModal}}" catchtap="closeDiaperModalByMask">
+  <view class="modal-content" catchtap="stopEvent">
+    
+    <!-- header -->
+    <view class="modal-header">
+      <text class="modal-title">💩 记录换尿布</text>
+    </view>
+    
+    <!-- body -->
+    <scroll-view class="modal-body" scroll-y="true">
+      <view class="option-group">
+        <view class="option-label">类型（可多选）</view>
+        <view class="option-buttons-multi">
+          
+          <view class="option-btn-multi {{diaperUrine ? 'active' : ''}}" 
+                bindtap="toggleDiaperUrine">
+            💧 尿尿
+          </view>
+          
+          <view class="option-btn-multi {{diaperStool ? 'active' : ''}}" 
+                bindtap="toggleDiaperStool">
+            💩 粑粑
+          </view>
+
+        </view>
+      </view>
+    </scroll-view>
+    
+    <!-- footer -->
+    <view class="modal-footer">
+      <button class="modal-btn cancel" bindtap="closeDiaperModal">取消</button>
+      <button class="modal-btn confirm" bindtap="confirmDiaper">记录</button>
+    </view>
+
+  </view>
+</view>
+
+<!-- 营养品弹窗 -->
+<!-- 营养品弹窗 -->
+<view class="modal-mask" wx:if="{{showSupplementModal}}" catchtap="closeSupplementModalByMask">
+  <view class="modal-content" catchtap="stopEvent">
+    
+    <!-- header -->
+    <view class="modal-header">
+      <text class="modal-title">💊 记录营养品</text>
+    </view>
+
+    <!-- body -->
+    <scroll-view class="modal-body" scroll-y="true">
+      
+      <!-- 输入框 + 添加按钮 -->
+      <view class="option-group">
+        <view class="option-label">营养品名称</view>
+        <view class="input-group">
+          <input 
+            class="supplement-input" 
+            placeholder="请输入营养品名称"
+            value="{{newSupplementName}}"
+            bindinput="onSupplementInput" />
+          <button class="add-btn" bindtap="addSupplement">添加</button>
+        </view>
+      </view>
+
+      <!-- 已添加营养品列表 -->
+      <view class="option-group" wx:if="{{supplements.length > 0}}">
+        <view class="option-label">已添加的营养品</view>
+        <view class="supplement-list">
+          <view 
+            class="supplement-item {{item.selected ? 'selected' : ''}}" 
+            wx:for="{{supplements}}" 
+            wx:key="id"
+            bindtap="toggleSupplement"
+            data-index="{{index}}">
+            {{item.name}}
+            <text class="check-icon" wx:if="{{item.selected}}">✓</text>
+          </view>
+        </view>
+      </view>
+
+    </scroll-view>
+
+    <!-- footer -->
+    <view class="modal-footer">
+      <button class="modal-btn cancel" bindtap="closeSupplementModal">取消</button>
+      <button class="modal-btn confirm" bindtap="confirmSupplement">记录</button>
+    </view>
+
+  </view>
+</view>

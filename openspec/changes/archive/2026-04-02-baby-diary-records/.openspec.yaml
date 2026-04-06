@@ -1,0 +1,21 @@
+name: baby-diary-records
+status: active
+created_at: "2026-03-25"
+title: 新生儿日常记录技能 - Baby Diary Records Skill
+description: 为OpenClaw设计的技能，用于记录0-1岁新生儿的日常（喂奶、大小便、营养品、洗澡等，含图片），本地文件存储，支持对话查询
+
+artifacts:
+  - id: proposal
+    status: pending
+    dependencies: []
+  - id: design
+    status: pending
+    dependencies:
+      - proposal
+  - id: tasks
+    status: pending
+    dependencies:
+      - design
+
+apply_requires:
+  - tasks

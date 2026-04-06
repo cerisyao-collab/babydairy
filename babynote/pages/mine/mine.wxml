@@ -1,0 +1,78 @@
+<view class="container">
+  <!-- 用户登录 -->
+  <view wx:if="{{!hasAuth}}" class="section">
+    <button class="btn" bindtap="getUserProfile">微信登录</button>
+  </view>
+  <view wx:if="{{hasAuth}}" class="section user-info">
+    <image src="{{userInfo.avatarUrl}}" class="avatar" />
+    <view class="nick">{{userInfo.nickName}}</view>
+  </view>
+
+  <!-- 家庭操作 -->
+  <view class="section card">
+    <view wx:if="{{!familyId}}">
+      <input placeholder="家庭名称" data-field="familyNameInput" bindinput="onInputChange" class="input"/>
+      <button class="btn" bindtap="createFamily">创建家庭</button>
+      <input placeholder="家庭ID" bindinput="onFamilyInput" value="{{inputFamilyId}}" class="input"/>
+      <button class="btn" bindtap="joinFamily">加入家庭</button>
+    </view>
+    <view wx:else>
+      <text>已加入家庭：{{familyName}}</text>
+      <button class="btn-secondary" bindtap="exitFamily">退出家庭</button>
+    </view>
+  </view>
+
+  <!-- 宝宝列表 -->
+  <view class="section card" wx:if="{{familyId}}">
+    <view class="section-title">👶 宝宝列表</view>
+    <view wx:if="{{babyList.length === 0}}" class="empty">暂无宝宝</view>
+    <view wx:for="{{babyList}}" wx:key="id" class="baby-item {{item.id === selectedBabyId ? 'selected' : ''}}">
+      <view class="baby-info" bindtap="selectBaby" data-id="{{item.id}}" data-name="{{item.name}}">
+        <text class="baby-name">{{item.name}}（{{item.gender}}）</text>
+        <text class="baby-selected" wx:if="{{item.id === selectedBabyId}}">✓ 当前</text>
+      </view>
+      <view>{{item.birthday || '未填写'}} / {{item.birth_height || '-'}}cm / {{item.birth_weight || '-'}}kg</view>
+      <button class="btn-delete" data-id="{{item.id}}" bindtap="deleteBaby">删除</button>
+    </view>
+    <button class="btn" bindtap="openBabyModal">添加宝宝</button>
+  </view>
+
+  <!-- 宝宝弹窗 -->
+  <view wx:if="{{showBabyModal}}" class="modal-mask" bindtap="closeBabyModal">
+    <view class="modal-content" catchtap="noop">
+      <view class="modal-title">添加宝宝</view>
+      <input placeholder="姓名" data-field="babyName" bindinput="onInputChange" value="{{babyName}}" class="input"/>
+      <view class="gender-select">
+        <text class="gender-btn {{babyGender=='男'?'active':''}}" data-value="男" bindtap="selectGender">男</text>
+        <text class="gender-btn {{babyGender=='女'?'active':''}}" data-value="女" bindtap="selectGender">女</text>
+      </view>
+      <picker mode="date" bindchange="selectBirthday" value="{{babyBirthday}}">
+        <view class="picker">{{babyBirthday || '生日 YYYY-MM-DD'}}</view>
+      </picker>
+      <input placeholder="身高(cm)" data-field="babyHeight" bindinput="onInputChange" class="input"/>
+      <input placeholder="体重(kg)" data-field="babyWeight" bindinput="onInputChange" class="input"/>
+      <button class="btn" bindtap="addBaby">确认添加</button>
+      <button class="btn-cancel" bindtap="closeBabyModal">取消</button>
+    </view>
+  </view>
+
+  <!-- 我的记录 -->
+<view class="section card">
+  <view class="section-title">我的记录</view>
+
+  <!-- 空状态 -->
+  <view wx:if="{{myRecords.length === 0}}" class="empty">{{hasAuth ? '暂无记录' : '登录后可查看记录'}}</view>
+
+  <!-- 记录列表 -->
+    <view wx:for="{{myRecords}}" wx:key="id" class="record-item">
+      <view class="record-header">
+        <text class="record-type">{{item.displayType}}</text>
+        <text class="record-time">{{item.displayTime}}</text>
+      </view>
+      <view class="record-value">{{item.displayValue}}</view>
+      <view class="record-user">记录者：{{item.displayUserName}}</view>
+      <!-- 只保留删除按钮 -->
+      <button class="btn-delete" data-id="{{item.id}}" bindtap="deleteRecord">删除</button>
+    </view>
+  </view>
+</view>

@@ -1,9 +1,9 @@
 ## 1. OIDC 认证测试
 
 - [x] 1.1 确认 GitHub Actions 工作流配置正确 (deploy.yml)
-- [ ] 1.2 触发 GitHub Actions 工作流 (推送代码或手动触发)
-- [ ] 1.3 查看 OIDC 认证日志确认 AssumeRole 成功
-- [ ] 1.4 验证临时凭证获取并用于部署操作
+- [x] 1.2 触发 GitHub Actions 工作流 (推送代码或手动触发)
+- [x] 1.3 查看 OIDC 认证日志确认 AssumeRole 成功
+- [x] 1.4 验证临时凭证获取并用于部署操作
 
 ## 2. FC 函数部署验证
 

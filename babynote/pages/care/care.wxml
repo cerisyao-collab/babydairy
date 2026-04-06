@@ -1,0 +1,132 @@
+<view class="container">
+  <!-- 标题 -->
+  <view class="header">
+    <view class="title">🛁 护理记录</view>
+    <view class="subtitle">宝宝的日常护理</view>
+  </view>
+
+  <!-- 护理按钮 -->
+  <view class="action-buttons">
+    <view class="action-btn bathing" bindtap="recordBathing">
+      <view class="btn-icon">🚿</view>
+      <view class="btn-text">洗澡</view>
+    </view>
+    
+    <view class="action-btn nail" bindtap="recordNailCutting">
+      <view class="btn-icon">✂️</view>
+      <view class="btn-text">剪指甲</view>
+    </view>
+
+    <view class="action-btn heightweight" bindtap="openHeightWeightModal">
+      <view class="btn-icon">📏</view>
+      <view class="btn-text">身高体重</view>
+    </view>
+
+    <view class="action-btn temperature" bindtap="openTemperatureModal">
+      <view class="btn-icon">🌡️</view>
+      <view class="btn-text">体温</view>
+    </view>
+  </view>
+
+  <!-- ================= 身高体重弹窗 ================= -->
+  <view wx:if="{{showHeightWeightModal}}" class="modal-mask" bindtap="closeHeightWeightModal">
+    
+    <!-- 阻止冒泡（关键） -->
+    <view class="modal-content" catchtap="noop">
+      
+      <view class="modal-header">
+        <view class="modal-title">📏 身高体重记录</view>
+      </view>
+
+      <view class="modal-body">
+
+        <!-- 第一行 -->
+        <view class="input-group">
+          <input 
+            type="digit"
+            placeholder="身高(cm)" 
+            data-field="height"
+            value="{{height}}"
+            bindinput="onInputChange"
+          />
+          <input 
+            type="digit"
+            placeholder="体重(kg)" 
+            data-field="weight"
+            value="{{weight}}"
+            bindinput="onInputChange"
+          />
+        </view>
+
+        <!-- 第二行 -->
+        <view class="input-group" style="margin-top:20rpx;">
+          <input 
+            type="digit"
+            placeholder="头围(cm)" 
+            data-field="head"
+            value="{{head}}"
+            bindinput="onInputChange"
+          />
+          <input 
+            type="digit"
+            placeholder="脚长(cm)" 
+            data-field="foot"
+            value="{{foot}}"
+            bindinput="onInputChange"
+          />
+        </view>
+
+      </view>
+
+      <view class="modal-footer">
+        <button class="modal-btn cancel" bindtap="closeHeightWeightModal">取消</button>
+        <button class="modal-btn confirm" bindtap="recordHeightWeight">记录</button>
+      </view>
+
+    </view>
+  </view>
+
+  <!-- ================= 体温弹窗 ================= -->
+  <view wx:if="{{showTemperatureModal}}" class="modal-mask" bindtap="closeTemperatureModal">
+    
+    <!-- 阻止冒泡 -->
+    <view class="modal-content" catchtap="noop">
+
+      <view class="modal-header">
+        <view class="modal-title">🌡️ 体温记录</view>
+      </view>
+
+      <view class="modal-body">
+
+        <!-- slider -->
+        <slider 
+          min="35" 
+          max="42" 
+          step="0.1" 
+          value="{{temperature}}" 
+          bindchange="onTemperatureSliderChange"
+        />
+
+        <!-- 输入框 -->
+        <view style="text-align:center; margin-top:20rpx;">
+          <input 
+            type="digit"
+            data-field="temperature"
+            value="{{temperature}}"
+            bindinput="onInputChange"
+            style="width:200rpx; text-align:center;"
+          />
+          <text style="margin-left:10rpx;">℃</text>
+        </view>
+
+      </view>
+
+      <view class="modal-footer">
+        <button class="modal-btn cancel" bindtap="closeTemperatureModal">取消</button>
+        <button class="modal-btn confirm" bindtap="recordTemperature">记录</button>
+      </view>
+
+    </view>
+  </view>
+
+</view>

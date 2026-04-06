@@ -1,0 +1,125 @@
+.container {
+  padding: 30rpx;
+  background: #f6f7fb;
+  min-height: 100vh;
+}
+
+/* ===== 头部 ===== */
+.header {
+  text-align: center;
+  margin-bottom: 30rpx;
+}
+
+.title {
+  font-size: 42rpx;
+  font-weight: 600;
+  color: #222;
+}
+
+.subtitle {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 8rpx;
+}
+
+/* ===== 筛选 ===== */
+.filter-bar {
+  display: flex;
+  gap: 20rpx;
+  margin-bottom: 24rpx;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 12rpx 22rpx;
+  background: #eee;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.filter-btn.active {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+}
+
+/* ===== 表格容器 ===== */
+.table {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx; /* 行间距 */
+  width: 90%;
+}
+
+/* ===== 表头 ===== */
+.table-header {
+  display: flex;
+  align-items: center;
+  padding: 0 10rpx;
+  font-size: 26rpx;
+  color: #999;
+}
+
+/* ===== 行（重点优化） ===== */
+.table-row {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 20rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04);
+}
+
+/* ===== 列布局（关键） ===== */
+.col {
+  overflow: scroll;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 类型 */
+.table-row .col:nth-child(1) {
+  flex: 2;
+  font-weight: 500;
+  color: #333;
+}
+
+/* 内容（最重要） */
+.table-row .col:nth-child(2) {
+  flex: 1.5;
+  text-align: center;
+  font-weight: 600;
+  color: #667eea;
+}
+
+/* 时间 */
+.table-row .col:nth-child(3) {
+  flex: 2;
+  text-align: right;
+  font-size: 24rpx;
+  color: #999;
+}
+
+/* 用户 */
+.table-row .col:nth-child(4) {
+  flex: 2;
+  text-align: right;
+  font-size: 24rpx;
+  color: #bbb;
+}
+
+/* 表头列对齐 */
+.table-header .col:nth-child(1) { flex: 2; text-align: left;}
+.table-header .col:nth-child(2) { flex: 1.5; text-align: center; }
+.table-header .col:nth-child(3) { flex: 2; text-align: right; }
+.table-header .col:nth-child(4) { flex: 2; text-align:right;}
+
+/* ===== 空状态 ===== */
+.empty {
+  text-align: center;
+  padding: 100rpx 40rpx;
+  color: #bbb;
+  font-size: 28rpx;
+}
+

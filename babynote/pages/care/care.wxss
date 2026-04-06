@@ -1,0 +1,198 @@
+/* ===== 页面 ===== */
+.container {
+  padding: 30rpx;
+  background: linear-gradient(180deg, #f6f7fb 0%, #ffffff 100%);
+  min-height: 100vh;
+}
+
+/* ===== 标题 ===== */
+.header {
+  text-align: center;
+  margin-bottom: 40rpx;
+}
+
+.title {
+  font-size: 42rpx;
+  font-weight: 600;
+  color: #222;
+}
+
+.subtitle {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 8rpx;
+}
+
+/* ===== 按钮区域（改为2x2网格） ===== */
+.action-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24rpx;
+}
+
+/* 按钮卡片 */
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 260rpx;
+  width: 260rpx;
+  border-radius: 24rpx;
+  color: #fff;
+  font-weight: 500;
+  box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.08);
+  transition: transform 0.15s;
+}
+
+.action-btn:active {
+  transform: scale(0.96);
+}
+
+/* 不同类型颜色 */
+.bathing {
+  background: linear-gradient(135deg, #5f9cff, #7db8ff);
+}
+
+.nail {
+  background: linear-gradient(135deg, #95a5a6, #bdc3c7);
+}
+
+.heightweight {
+  background: linear-gradient(135deg, #2ecc71, #55efc4);
+}
+
+.temperature {
+  background: linear-gradient(135deg, #ff7675, #fd79a8);
+}
+
+.btn-icon {
+  font-size: 100rpx;
+  margin-bottom: 12rpx;
+}
+
+.btn-text {
+  font-size: 40rpx;
+}
+
+/* ===== 弹窗遮罩 ===== */
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+/* ===== 弹窗主体 ===== */
+.modal-content {
+  width: 88%;
+  background: #fff;
+  border-radius: 24rpx;
+  overflow: hidden;
+  animation: modalFade 0.25s ease;
+}
+
+/* 动画 */
+@keyframes modalFade {
+  from {
+    opacity: 0;
+    transform: translateY(80rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== 弹窗头 ===== */
+.modal-header {
+  padding: 32rpx;
+  text-align: center;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+/* ===== 内容区 ===== */
+.modal-body {
+  padding: 32rpx;
+}
+
+/* 输入组 */
+.input-group {
+  display: flex;
+  gap: 20rpx;
+}
+
+/* 输入框（重点优化） */
+input {
+  flex: 1;
+  height: 80rpx;
+  background: #f5f6fa;
+  border-radius: 16rpx;
+  padding: 0 20rpx;
+  font-size: 28rpx;
+  border: 2rpx solid transparent;
+}
+
+/* 聚焦效果 */
+input:focus {
+  border-color: #667eea;
+  background: #fff;
+}
+
+/* ===== 底部按钮 ===== */
+.modal-footer {
+  display: flex;
+  padding: 24rpx 32rpx 32rpx;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+/* 按钮通用 */
+.modal-btn {
+  flex: 1;
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 16rpx;
+  font-size: 30rpx;
+  border: none;
+}
+
+.modal-btn::after {
+  border: none;
+}
+
+/* 取消 */
+.modal-btn.cancel {
+  background: #f1f2f6;
+  color: #666;
+  margin-right: 20rpx;
+}
+
+/* 确认 */
+.modal-btn.confirm {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+}
+
+/* ===== slider区域 ===== */
+slider {
+  margin-top: 20rpx;
+}
+
+/* ===== 空白适配（防止遮挡） ===== */
+.container::after {
+  content: '';
+  display: block;
+  height: 40rpx;
+}
