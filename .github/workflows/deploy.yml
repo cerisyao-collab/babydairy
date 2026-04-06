@@ -57,7 +57,7 @@ jobs:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -upgrade
         working-directory: terraform
 
       - name: Terraform Plan
