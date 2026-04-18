@@ -163,7 +163,9 @@ jobs:
             -a default
 
       - name: Deploy FC Function
-        run: s deploy
+        run: |
+          chmod +x scripts/fc_deploy.sh
+          ./scripts/fc_deploy.sh
         env:
           VPC_ID: ${{ secrets.VPC_ID }}
           VSWITCH_ID: ${{ secrets.VSWITCH_ID }}
@@ -171,6 +173,9 @@ jobs:
           OSS_SECRETS_BUCKET: ${{ secrets.OSS_SECRETS_BUCKET }}
           OSS_ENDPOINT: oss-cn-shanghai.aliyuncs.com
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          WECHAT_APP_ID: ${{ secrets.WECHAT_APP_ID }}
+          WECHAT_APP_SECRET: ${{ secrets.WECHAT_APP_SECRET }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
   # Job 3: Verify Deployment
   verify:
