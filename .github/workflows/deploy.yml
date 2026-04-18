@@ -72,7 +72,12 @@ jobs:
           EOF
 
       - name: Terraform Init
-        run: terraform init -upgrade
+        run: |
+          # Extract STS credentials from aliyun CLI config (written by OIDC Auth step)
+          export ALICLOUD_ACCESS_KEY=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
+          export ALICLOUD_SECRET_KEY=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
+          export ALICLOUD_SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
+          terraform init -upgrade
         working-directory: terraform
 
       - name: Terraform Plan
@@ -83,13 +88,20 @@ jobs:
           TF_VAR_wechat_app_secret: ${{ secrets.WECHAT_APP_SECRET }}
           TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
         run: |
+          export ALICLOUD_ACCESS_KEY=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
+          export ALICLOUD_SECRET_KEY=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
+          export ALICLOUD_SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
           terraform plan -out=tfplan -detailed-exitcode
         working-directory: terraform
         continue-on-error: true
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && steps.plan.outcome == 'success'
-        run: terraform apply -auto-approve tfplan
+        run: |
+          export ALICLOUD_ACCESS_KEY=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
+          export ALICLOUD_SECRET_KEY=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
+          export ALICLOUD_SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
+          terraform apply -auto-approve tfplan
         working-directory: terraform
 
       - name: Upload Terraform Plan

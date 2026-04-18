@@ -52,7 +52,11 @@ jobs:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
       - name: Terraform Init
-        run: terraform init
+        run: |
+          export ALICLOUD_ACCESS_KEY=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
+          export ALICLOUD_SECRET_KEY=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
+          export ALICLOUD_SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
+          terraform init
         working-directory: terraform
 
       - name: Terraform Format Check
@@ -71,7 +75,11 @@ jobs:
           TF_VAR_wechat_app_id: ${{ secrets.WECHAT_APP_ID }}
           TF_VAR_wechat_app_secret: ${{ secrets.WECHAT_APP_SECRET }}
           TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
-        run: terraform plan -no-color -out=tfplan
+        run: |
+          export ALICLOUD_ACCESS_KEY=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
+          export ALICLOUD_SECRET_KEY=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
+          export ALICLOUD_SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
+          terraform plan -no-color -out=tfplan
         working-directory: terraform
         continue-on-error: true
 
@@ -124,7 +132,11 @@ jobs:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
       - name: Terraform Init
-        run: terraform init
+        run: |
+          export ALICLOUD_ACCESS_KEY=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
+          export ALICLOUD_SECRET_KEY=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
+          export ALICLOUD_SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
+          terraform init
         working-directory: terraform
 
       - name: Terraform Apply
@@ -133,7 +145,11 @@ jobs:
           TF_VAR_wechat_app_id: ${{ secrets.WECHAT_APP_ID }}
           TF_VAR_wechat_app_secret: ${{ secrets.WECHAT_APP_SECRET }}
           TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
-        run: terraform apply -auto-approve
+        run: |
+          export ALICLOUD_ACCESS_KEY=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
+          export ALICLOUD_SECRET_KEY=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
+          export ALICLOUD_SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
+          terraform apply -auto-approve
         working-directory: terraform
 
       - name: Output Infrastructure Info
