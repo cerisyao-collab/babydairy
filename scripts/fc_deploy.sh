@@ -11,7 +11,7 @@ DATABASE_URL="${DATABASE_URL:?DATABASE_URL is required}"
 OSS_SECRETS_BUCKET="${OSS_SECRETS_BUCKET:?OSS_SECRETS_BUCKET is required}"
 OSS_ENDPOINT="${OSS_ENDPOINT:-oss-cn-shanghai.aliyuncs.com}"
 
-cat > s.deploy.yaml << EOF
+cat > s.yaml.deploy << EOF
 edition: 1.0.0
 name: baby-diary-api
 access: default
@@ -65,8 +65,14 @@ services:
               - PATCH
 EOF
 
-echo "Generated s.deploy.yaml with VPC config"
-echo "=== s.deploy.yaml contents ==="
-cat s.deploy.yaml
+echo "Generated s.yaml.deploy with VPC config"
+echo "=== s.yaml.deploy contents ==="
+cat s.yaml.deploy
 echo "=============================="
-s deploy --config s.deploy.yaml
+
+# Backup original s.yaml and use the generated one
+mv s.yaml s.yaml.orig
+mv s.yaml.deploy s.yaml
+s deploy
+# Restore original
+mv s.yaml.orig s.yaml
