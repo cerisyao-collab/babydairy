@@ -131,6 +131,20 @@ jobs:
       - name: Install Serverless Devs
         run: npm install -g @serverless-devs/s
 
+      - name: Configure Serverless Devs Access
+        run: |
+          # Extract STS credentials from aliyun CLI config (written by oidc_auth.sh)
+          ACCESS_KEY_ID=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
+          ACCESS_KEY_SECRET=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
+          SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
+
+          # Configure Serverless Devs with STS credentials
+          s config add \
+            --AccessKeyID "$ACCESS_KEY_ID" \
+            --AccessKeySecret "$ACCESS_KEY_SECRET" \
+            --SecurityToken "$SECURITY_TOKEN" \
+            -a default
+
       - name: Deploy FC Function
         run: s deploy
         env:
