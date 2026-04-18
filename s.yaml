@@ -26,8 +26,7 @@ services:
         vpcConfig:
           vpcId: ${env:VPC_ID}
           securityGroupId: ${env:SECURITY_GROUP_ID}
-          vswitchIds:
-            - ${env:VSWITCH_ID}
+          vswitchIds: ${env:VSWITCH_IDS}
 
         # 日志配置
         logConfig:
