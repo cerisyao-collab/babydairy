@@ -66,7 +66,7 @@ jobs:
 
       - name: Terraform Plan
         id: plan
-        run: terraform plan -no-color -out=tfplan
+        run: terraform plan -no-color -out=tfplan -var "db_password=${{ secrets.DB_PASSWORD }}" -var "wechat_app_id=${{ secrets.WECHAT_APP_ID }}" -var "wechat_app_secret=${{ secrets.WECHAT_APP_SECRET }}" -var "jwt_secret=${{ secrets.JWT_SECRET }}"
         working-directory: terraform
         continue-on-error: true
 
@@ -123,7 +123,7 @@ jobs:
         working-directory: terraform
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve -var "db_password=${{ secrets.DB_PASSWORD }}" -var "wechat_app_id=${{ secrets.WECHAT_APP_ID }}" -var "wechat_app_secret=${{ secrets.WECHAT_APP_SECRET }}" -var "jwt_secret=${{ secrets.JWT_SECRET }}"
         working-directory: terraform
 
       - name: Output Infrastructure Info
