@@ -51,6 +51,21 @@ jobs:
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
+      - name: Configure Terraform Mirror
+        run: |
+          mkdir -p ~/.terraform.d
+          cat > ~/.terraform.d/.terraformrc << 'EOF'
+          provider_installation {
+            network_mirror {
+              url = "https://mirrors.aliyun.com/terraform/"
+              include = ["registry.terraform.io/*/*"]
+            }
+            direct {
+              exclude = ["registry.terraform.io/*/*"]
+            }
+          }
+          EOF
+
       - name: Terraform Init
         run: |
           export ALICLOUD_ACCESS_KEY=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
