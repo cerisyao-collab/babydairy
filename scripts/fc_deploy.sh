@@ -66,4 +66,7 @@ services:
 EOF
 
 echo "Generated s.deploy.yaml with VPC config"
+echo "=== s.deploy.yaml contents ==="
+cat s.deploy.yaml
+echo "=============================="
 s deploy --config s.deploy.yaml
