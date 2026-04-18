@@ -30,9 +30,6 @@ services:
           securityGroupId: ${SECURITY_GROUP_ID}
           vswitchIds:
             - ${VSWITCH_ID}
-        logConfig:
-          project: baby-diary-logs
-          logstore: fc-logs
       function:
         name: api
         description: Baby Diary API Function
