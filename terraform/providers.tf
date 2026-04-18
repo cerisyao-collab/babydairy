@@ -9,12 +9,12 @@ terraform {
     }
   }
 
-  # Backend for state storage (local for trial)
-  # For production, use OSS backend:
-  # backend "oss" {
-  #   bucket = "your-terraform-state-bucket"
-  #   prefix = "baby-diary/"
-  # }
+  backend "oss" {
+    bucket = "baby-diary-sec-sh2025"
+    prefix = "terraform"
+    key    = "terraform.tfstate"
+    region = "cn-shanghai"
+  }
 }
 
 provider "alicloud" {
