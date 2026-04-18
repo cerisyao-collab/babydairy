@@ -11,8 +11,7 @@ const FC_SERVICE_NAME = 'baby-diary-service'
 const FC_FUNCTION_NAME = 'api'
 
 // 生产环境 API 地址（FC HTTP 触发器 URL）
-// TODO: 部署后替换为实际的 FC HTTP 触发器 URL
-const PROD_API_BASE_URL = `https://${FC_FUNCTION_NAME}.${FC_SERVICE_NAME}.${FC_ACCOUNT_ID}.${FC_REGION}.fcapp.run`
+const PROD_API_BASE_URL = 'https://api-baby-di-service-lcajvpgpkx.cn-shanghai.fcapp.run'
 
 // 开发环境 API 地址（可选：本地代理或测试环境）
 const DEV_API_BASE_URL = 'http://localhost:3000'
