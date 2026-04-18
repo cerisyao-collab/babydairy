@@ -166,7 +166,7 @@ jobs:
         run: s deploy
         env:
           VPC_ID: ${{ secrets.VPC_ID }}
-          VSWITCH_IDS: ${{ secrets.VSWITCH_ID }}
+          VSWITCH_ID: ${{ secrets.VSWITCH_ID }}
           SECURITY_GROUP_ID: ${{ secrets.SECURITY_GROUP_ID }}
           OSS_SECRETS_BUCKET: ${{ secrets.OSS_SECRETS_BUCKET }}
           OSS_ENDPOINT: oss-cn-shanghai.aliyuncs.com

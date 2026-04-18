@@ -9,6 +9,9 @@ vars:
   memorySize: 256
   timeout: 30
   runtime: python3.9
+  vpcId: ${env:VPC_ID}
+  vswitchId: ${env:VSWITCH_ID}
+  securityGroupId: ${env:SECURITY_GROUP_ID}
 
 services:
   baby-diary-api:
@@ -24,9 +27,10 @@ services:
 
         # VPC 配置（用于访问 RDS）
         vpcConfig:
-          vpcId: ${env:VPC_ID}
-          securityGroupId: ${env:SECURITY_GROUP_ID}
-          vswitchIds: ${env:VSWITCH_IDS}
+          vpcId: ${vars.vpcId}
+          securityGroupId: ${vars.securityGroupId}
+          vswitchIds:
+            - ${vars.vswitchId}
 
         # 日志配置
         logConfig:
