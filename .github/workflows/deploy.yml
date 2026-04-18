@@ -77,22 +77,19 @@ jobs:
 
       - name: Terraform Plan
         id: plan
+        env:
+          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+          TF_VAR_wechat_app_id: ${{ secrets.WECHAT_APP_ID }}
+          TF_VAR_wechat_app_secret: ${{ secrets.WECHAT_APP_SECRET }}
+          TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
         run: |
-          terraform plan -out=tfplan -detailed-exitcode \
-            -var "db_password=${{ secrets.DB_PASSWORD }}" \
-            -var "wechat_app_id=${{ secrets.WECHAT_APP_ID }}" \
-            -var "wechat_app_secret=${{ secrets.WECHAT_APP_SECRET }}" \
-            -var "jwt_secret=${{ secrets.JWT_SECRET }}"
+          terraform plan -out=tfplan -detailed-exitcode
         working-directory: terraform
         continue-on-error: true
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && steps.plan.outcome == 'success'
-        run: terraform apply -auto-approve tfplan \
-            -var "db_password=${{ secrets.DB_PASSWORD }}" \
-            -var "wechat_app_id=${{ secrets.WECHAT_APP_ID }}" \
-            -var "wechat_app_secret=${{ secrets.WECHAT_APP_SECRET }}" \
-            -var "jwt_secret=${{ secrets.JWT_SECRET }}"
+        run: terraform apply -auto-approve tfplan
         working-directory: terraform
 
       - name: Upload Terraform Plan
