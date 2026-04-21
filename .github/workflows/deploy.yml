@@ -166,22 +166,27 @@ jobs:
             ".env.example" "s.yaml" "s.yaml.*" "alembic.ini" "Dockerfile*" \
             "function_code.zip" "python/.*" ".mypy_cache/*"
 
-          # Build JSON body with zipFile
+          # Build Code JSON via env var to avoid command line length limit
           B64=$(base64 -w 0 function_code.zip)
-          printf '{"Code":{"ZipFile":"%s"}}' "$B64" > /tmp/fc_code_body.json
+          export FC_CODE_JSON="{\"ZipFile\":\"$B64\"}"
 
-          # Update function code via REST API (read body from file)
-          aliyun fc POST "/2023-03-30/services/baby-diary-service/functions/api/code" \
-            --body file:///tmp/fc_code_body.json
+          # Update function code
+          aliyun fc UpdateFunctionCode \
+            --region cn-shanghai \
+            --ServiceName baby-diary-service \
+            --FunctionName api \
+            --Code "$FC_CODE_JSON"
 
           # Update function config
-          aliyun fc PUT "/2023-03-30/services/baby-diary-service/functions/api" \
-            --body "$(jq -n \
-              --arg db "$DATABASE_URL" \
-              --arg wid "$WECHAT_APP_ID" \
-              --arg ws "$WECHAT_APP_SECRET" \
-              --arg js "$JWT_SECRET" \
-              '{Handler:"src.api.index.handler",Runtime:"python3.9",MemorySize:256,Timeout:30,EnvironmentVariables:{DATABASE_URL:$db,WECHAT_APP_ID:$wid,WECHAT_APP_SECRET:$ws,JWT_SECRET:$js,JWT_ALGORITHM:"HS256",JWT_EXPIRE_MINUTES:"10080"}}')"
+          aliyun fc UpdateFunction \
+            --region cn-shanghai \
+            --ServiceName baby-diary-service \
+            --FunctionName api \
+            --Handler src.api.index.handler \
+            --Runtime python3.9 \
+            --MemorySize 256 \
+            --Timeout 30 \
+            --EnvironmentVariables "{\"DATABASE_URL\":\"$DATABASE_URL\",\"WECHAT_APP_ID\":\"$WECHAT_APP_ID\",\"WECHAT_APP_SECRET\":\"$WECHAT_APP_SECRET\",\"JWT_SECRET\":\"$JWT_SECRET\",\"JWT_ALGORITHM\":\"HS256\",\"JWT_EXPIRE_MINUTES\":\"10080\"}"
 
           echo "FC function updated successfully"
 
