@@ -166,11 +166,9 @@ jobs:
             ".env.example" "s.yaml" "s.yaml.*" "alembic.ini" "Dockerfile*" \
             "function_code.zip" "python/.*" ".mypy_cache/*"
 
-          # Build JSON body with zipFile from file
+          # Build JSON body with zipFile
           B64=$(base64 -w 0 function_code.zip)
-          cat > /tmp/fc_code_body.json << B64EOF
-{"Code":{"ZipFile":"$B64"}}
-B64EOF
+          printf '{"Code":{"ZipFile":"%s"}}' "$B64" > /tmp/fc_code_body.json
 
           # Update function code via REST API (read body from file)
           aliyun fc POST "/2023-03-30/services/baby-diary-service/functions/api/code" \
