@@ -140,6 +140,14 @@ jobs:
           chmod +x scripts/oidc_auth.sh
           ./scripts/oidc_auth.sh
 
+      - name: Install ossutil
+        run: |
+          wget -q https://gosspublic.alicdn.com/ossutil/1.7.18/ossutil-v1.7.18-linux-amd64.zip
+          unzip -q ossutil-v1.7.18-linux-amd64.zip
+          chmod +x ossutil-v1.7.18-linux-amd64/ossutil
+          sudo mv ossutil-v1.7.18-linux-amd64/ossutil /usr/local/bin/
+          ossutil --version
+
       - name: Install Python Dependencies
         run: |
           pip install --target python/ -r requirements.txt
@@ -161,36 +169,50 @@ jobs:
           ACCESS_KEY_SECRET=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
           SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
 
-          # Package code into a zip
+          # Package code into a zip (exclude unnecessary files)
           zip -rq function_code.zip . \
             -x "*.git*" "*.github*" "terraform/*" "scripts/*" "openspec/*" "tests/*" ".claude/*" \
             "babynote/*" "docs/*" "config/*" "*.md" "*.log" ".gitignore" \
             ".env.example" "s.yaml" "s.yaml.*" "alembic.ini" "Dockerfile*" \
-            "function_code.zip" "python/.*" ".mypy_cache/*"
+            "function_code.zip" "python/.*" ".mypy_cache/*" "scripts/*"
 
-          # Encode zip as base64
-          B64_CODE=$(base64 -w 0 function_code.zip)
+          # Upload zip to OSS (reuse secrets bucket)
+          BUCKET="$OSS_SECRETS_BUCKET"
+          OBJECT="fc-code/function_code.zip"
+          ossutil cp function_code.zip "oss://$BUCKET/$OBJECT" \
+            -e "$OSS_ENDPOINT" \
+            -i "$ACCESS_KEY_ID" \
+            -k "$ACCESS_KEY_SECRET" \
+            -t "$SECURITY_TOKEN" \
+            --sts-token "$SECURITY_TOKEN" --force
 
-          # Update function code via FC OpenAPI
+          # Update function code from OSS
           aliyun fc POST "/2023-03-30/services/baby-diary-service/functions/api/code" \
-            --body "{\"Code\": {\"ZipFile\": \"$B64_CODE\"}}"
+            --body "$(jq -n --arg b "$BUCKET" --arg o "$OBJECT" \
+              '{Code: {OssBucketName: $b, OssObjectName: $o}}')"
 
           # Update function configuration
           aliyun fc PUT "/2023-03-30/services/baby-diary-service/functions/api" \
-            --body '{
-              "Handler": "src.api.index.handler",
-              "Runtime": "python3.9",
-              "MemorySize": 256,
-              "Timeout": 30,
-              "EnvironmentVariables": {
-                "DATABASE_URL": "'"$DATABASE_URL"'",
-                "WECHAT_APP_ID": "'"$WECHAT_APP_ID"'",
-                "WECHAT_APP_SECRET": "'"$WECHAT_APP_SECRET"'",
-                "JWT_SECRET": "'"$JWT_SECRET"'",
-                "JWT_ALGORITHM": "HS256",
-                "JWT_EXPIRE_MINUTES": "10080"
-              }
-            }'
+            --body "$(jq -n \
+              --arg handler "src.api.index.handler" \
+              --arg db "$DATABASE_URL" \
+              --arg wid "$WECHAT_APP_ID" \
+              --arg ws "$WECHAT_APP_SECRET" \
+              --arg js "$JWT_SECRET" \
+              '{
+                Handler: $handler,
+                Runtime: "python3.9",
+                MemorySize: 256,
+                Timeout: 30,
+                EnvironmentVariables: {
+                  DATABASE_URL: $db,
+                  WECHAT_APP_ID: $wid,
+                  WECHAT_APP_SECRET: $ws,
+                  JWT_SECRET: $js,
+                  JWT_ALGORITHM: "HS256",
+                  JWT_EXPIRE_MINUTES: "10080"
+                }
+              }')"
 
           echo "FC function updated successfully"
 
