@@ -70,6 +70,6 @@ echo "=============================="
 # Backup original s.yaml and use the generated one
 mv s.yaml s.yaml.orig
 mv s.yaml.deploy s.yaml
-s deploy -y
+s deploy -y --use-local
 # Restore original
 mv s.yaml.orig s.yaml
