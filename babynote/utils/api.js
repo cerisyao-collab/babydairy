@@ -22,9 +22,11 @@ function login() {
           data: { code: loginRes.code },
           success: (res) => {
             console.log('登录响应 status:', res.statusCode)
+            console.log('登录响应 body:', JSON.stringify(res.data))
             if (res.statusCode === 200) {
               const data = res.data
-              console.log('login response:', data.token ? 'has token' : 'no token')
+              console.log('login response keys:', Object.keys(data || {}))
+              console.log('login response: has token?', !!data.token)
               // 保存 token 和用户信息
               wx.setStorageSync('token', data.token)
               wx.setStorageSync('userInfo', {
