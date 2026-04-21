@@ -48,7 +48,7 @@ Page({
       confirmText: '去登录',
       success: (res) => {
         if (res.confirm) {
-          wx.navigateTo({ url: '/pages/mine/mine' })
+          wx.switchTab({ url: '/pages/mine/mine' })
         }
       }
     })
