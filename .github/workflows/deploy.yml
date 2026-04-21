@@ -89,18 +89,9 @@ jobs:
           export ALICLOUD_ACCESS_KEY=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
           export ALICLOUD_SECRET_KEY=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
           export ALICLOUD_SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
-          terraform plan -out=tfplan -detailed-exitcode -target=alicloud_vpc.main -target=alicloud_vswitch.rds -target=alicloud_vswitch.fc -target=alicloud_security_group.rds -target=alicloud_db_instance.postgres -target=alicloud_oss_bucket.secrets -target=alicloud_ram_role.fc_deploy -target=alicloud_ram_policy.fc_deploy -target=alicloud_ram_policy.terraform_deploy -target=alicloud_ram_role.terraform_deploy
+          terraform plan -out=tfplan -detailed-exitcode
         working-directory: terraform
         continue-on-error: true
-
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/main' && steps.plan.outcome == 'success'
-        run: |
-          export ALICLOUD_ACCESS_KEY=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
-          export ALICLOUD_SECRET_KEY=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
-          export ALICLOUD_SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
-          terraform apply -auto-approve tfplan
-        working-directory: terraform
 
       - name: Upload Terraform Plan
         if: steps.plan.outcome == 'changes'
@@ -109,6 +100,13 @@ jobs:
           name: terraform-plan
           path: terraform/tfplan
           retention-days: 1
+
+      - name: Terraform Apply (manual trigger)
+        if: steps.plan.outcome == 'changes'
+        run: |
+          echo "Terraform changes detected. Run 'terraform apply' manually to review."
+          echo "Plan uploaded as artifact for review."
+        continue-on-error: true
 
   # Job 2: Deploy FC Function
   deploy-function:
@@ -129,8 +127,7 @@ jobs:
           aliyun version
 
       - name: Install Serverless Devs
-        run: |
-          npm install -g @serverless-devs/s
+        run: npm install -g @serverless-devs/s
 
       - name: OIDC Authentication
         env:
@@ -142,21 +139,23 @@ jobs:
           chmod +x scripts/oidc_auth.sh
           ./scripts/oidc_auth.sh
 
+      - name: Grant FC Code Upload Permission
+        run: |
+          # Create and attach policy for Serverless Devs temp code bucket
+          aliyun ram CreatePolicy \
+            --PolicyName "baby-diary-fc-code-upload" \
+            --PolicyType "Custom" \
+            --Description "Allow FC code upload via Serverless Devs" \
+            --PolicyDocument '{"Version":"1","Statement":[{"Effect":"Allow","Action":["fc:GrantTempCodeBucketPermission"],"Resource":["acs:fc:*:*:services/baby-diary-*"]}]}' 2>/dev/null || echo "Policy already exists"
+          aliyun ram AttachPolicyToRole \
+            --PolicyName "baby-diary-fc-code-upload" \
+            --PolicyType "Custom" \
+            --RoleName "baby-diary-fc-deploy"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-
-      - name: Grant Temp Code Bucket Permission
-        run: |
-          # Add fc:GrantTempCodeBucketPermission to the fc-deploy policy directly via CLI
-          # This is needed for Serverless Devs to upload code
-          aliyun ram CreatePolicy --PolicyName "baby-diary-fc-code-upload" \
-            --PolicyType "Custom" \
-            --Description "Allow FC code upload via Serverless Devs" \
-            --PolicyDocument '{"Version":"1","Statement":[{"Effect":"Allow","Action":["fc:GrantTempCodeBucketPermission"],"Resource":["acs:fc:*:*:services/baby-diary-*"]}]}' 2>/dev/null || true
-          aliyun ram AttachPolicyToRole --PolicyName "baby-diary-fc-code-upload" \
-            --PolicyType "Custom" --RoleName "baby-diary-fc-deploy"
 
       - name: Configure Serverless Devs Access
         run: |
@@ -171,8 +170,7 @@ jobs:
             -a default
 
       - name: Install Python Dependencies
-        run: |
-          pip install --target python/ -r requirements.txt
+        run: pip install --target python/ -r requirements.txt
 
       - name: Deploy FC Function
         env:
@@ -227,7 +225,6 @@ jobs:
           fi
 
           echo "API Endpoint: $ENDPOINT"
-
           curl -s "$ENDPOINT/api/health" || echo "Health check completed"
 
       - name: Deployment Summary
