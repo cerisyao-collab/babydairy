@@ -162,6 +162,10 @@ jobs:
             --SecurityToken "$SECURITY_TOKEN" \
             -a default
 
+      - name: Install Python Dependencies
+        run: |
+          pip install --platform manylinux2014_x86_64 --only-binary=:all: --python-version 3.9 --target python/ -r requirements.txt
+
       - name: Deploy FC Function
         run: |
           chmod +x scripts/fc_deploy.sh
