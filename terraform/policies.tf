@@ -169,7 +169,6 @@ resource "alicloud_ram_policy" "fc_deploy" {
           "fc:UpdateFunction",
           "fc:InvokeFunction",
           "fc:ListFunctions",
-          "fc:GrantTempCodeBucketPermission",
         ]
         Resource = [
           "acs:fc:*:*:services/baby-diary-*",
