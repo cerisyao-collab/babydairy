@@ -126,32 +126,15 @@ jobs:
           sudo mv aliyun /usr/local/bin/
           aliyun version
 
-      - name: Install Serverless Devs
-        run: npm install -g @serverless-devs/s
-
-      - name: OIDC Authentication (Terraform Role)
+      - name: OIDC Authentication
         env:
-          ROLE_TO_ASSUME: ${{ secrets.TERRAFORM_DEPLOY_ROLE_ARN }}
+          ROLE_TO_ASSUME: ${{ secrets.FC_DEPLOY_ROLE_ARN }}
           OIDC_PROVIDER_ARN: ${{ secrets.OIDC_PROVIDER_ARN }}
           OIDC_AUDIENCE: github-actions
           ROLE_SESSION_NAME: fc-deploy-${{ github.run_id }}
         run: |
           chmod +x scripts/oidc_auth.sh
           ./scripts/oidc_auth.sh
-
-      - name: Grant FC Code Upload Permission
-        run: |
-          # Use terraform-deploy role (has broader permissions) to grant FC deploy role
-          # the permission needed for Serverless Devs temp code bucket
-          aliyun ram CreatePolicy \
-            --PolicyName "baby-diary-fc-code-upload" \
-            --PolicyType "Custom" \
-            --Description "Allow FC code upload via Serverless Devs" \
-            --PolicyDocument '{"Version":"1","Statement":[{"Effect":"Allow","Action":["fc:GrantTempCodeBucketPermission"],"Resource":["acs:fc:*:*:services/baby-diary-*"]}]}' 2>/dev/null || echo "Policy already exists"
-          aliyun ram AttachPolicyToRole \
-            --PolicyName "baby-diary-fc-code-upload" \
-            --PolicyType "Custom" \
-            --RoleName "baby-diary-fc-deploy"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -161,31 +144,57 @@ jobs:
       - name: Install Python Dependencies
         run: pip install --target python/ -r requirements.txt
 
-      - name: Configure Serverless Devs Access
-        run: |
-          ACCESS_KEY_ID=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
-          ACCESS_KEY_SECRET=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
-          SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
-          s config add \
-            --AccessKeyID "$ACCESS_KEY_ID" \
-            --AccessKeySecret "$ACCESS_KEY_SECRET" \
-            --SecurityToken "$SECURITY_TOKEN" \
-            -a default
-
       - name: Deploy FC Function
         env:
-          VPC_ID: ${{ secrets.VPC_ID }}
-          VSWITCH_ID: ${{ secrets.VSWITCH_ID }}
-          SECURITY_GROUP_ID: ${{ secrets.SECURITY_GROUP_ID }}
-          OSS_SECRETS_BUCKET: ${{ secrets.OSS_SECRETS_BUCKET }}
-          OSS_ENDPOINT: oss-cn-shanghai.aliyuncs.com
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           WECHAT_APP_ID: ${{ secrets.WECHAT_APP_ID }}
           WECHAT_APP_SECRET: ${{ secrets.WECHAT_APP_SECRET }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          VPC_ID: ${{ secrets.VPC_ID }}
+          VSWITCH_ID: ${{ secrets.VSWITCH_ID }}
+          SECURITY_GROUP_ID: ${{ secrets.SECURITY_GROUP_ID }}
         run: |
-          chmod +x scripts/fc_deploy.sh
-          ./scripts/fc_deploy.sh
+          ACCESS_KEY_ID=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
+          ACCESS_KEY_SECRET=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
+          SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
+          export ALIBABA_CLOUD_ACCESS_KEY_ID="$ACCESS_KEY_ID"
+          export ALIBABA_CLOUD_ACCESS_KEY_SECRET="$ACCESS_KEY_SECRET"
+          export ALIBABA_CLOUD_SECURITY_TOKEN="$SECURITY_TOKEN"
+
+          # Package code
+          zip -rq function_code.zip . \
+            -x "*.git*" "*.github*" "terraform/*" "scripts/*" "openspec/*" "tests/*" ".claude/*" \
+            "babynote/*" "docs/*" "config/*" "*.md" "*.log" ".gitignore" \
+            ".env.example" "s.yaml" "s.yaml.*" "alembic.ini" "Dockerfile*" \
+            "function_code.zip" "python/.*" ".mypy_cache/*"
+
+          # Build body JSON using Python to handle large base64
+          B64=$(base64 -w 0 function_code.zip)
+          python3 -c "
+import json, os, sys
+body = {
+    'Code': {'ZipFile': sys.argv[1]},
+    'Handler': 'src.api.index.handler',
+    'Runtime': 'python3.9',
+    'MemorySize': 256,
+    'Timeout': 30,
+    'EnvironmentVariables': {
+        'DATABASE_URL': os.environ['DATABASE_URL'],
+        'WECHAT_APP_ID': os.environ.get('WECHAT_APP_ID', ''),
+        'WECHAT_APP_SECRET': os.environ.get('WECHAT_APP_SECRET', ''),
+        'JWT_SECRET': os.environ.get('JWT_SECRET', ''),
+        'JWT_ALGORITHM': 'HS256',
+        'JWT_EXPIRE_MINUTES': '10080',
+    }
+}
+with open('/tmp/fc_update_body.json', 'w') as f:
+    json.dump(body, f)
+" "$B64"
+
+          # Update function (code + config) via FC 3.0 API
+          aliyun fc UpdateFunction --FunctionName api --body file:///tmp/fc_update_body.json
+
+          echo "FC function updated successfully"
 
   # Job 3: Verify Deployment
   verify:
