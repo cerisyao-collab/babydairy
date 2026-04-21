@@ -10,9 +10,10 @@
 <view class="filter-bar">
   <view class="filter-btn {{filter==='all'?'active':''}}" data-type="all" bindtap="onFilterChange">全部</view>
   <view class="filter-btn {{filter==='feeding'?'active':''}}" data-type="feeding" bindtap="onFilterChange">喂养</view>
+  <view class="filter-btn {{filter==='diaper'?'active':''}}" data-type="diaper" bindtap="onFilterChange">排便</view>
   <view class="filter-btn {{filter==='care'?'active':''}}" data-type="care" bindtap="onFilterChange">护理</view>
   <view class="filter-btn {{filter==='growth'?'active':''}}" data-type="growth" bindtap="onFilterChange">生长</view>
-  <view class="filter-btn {{filter==='temp'?'active':''}}" data-type="temp" bindtap="onFilterChange">体温</view>
+  <view class="filter-btn {{filter==='medication'?'active':''}}" data-type="medication" bindtap="onFilterChange">营养品</view>
 </view>
 
 <!-- 表格 -->

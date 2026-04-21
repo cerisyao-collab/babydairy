@@ -1,143 +1,120 @@
 // pages/mine/mine.js
-const { supabase } = require('../../utils/supabase')
+const api = require('../../utils/api')
 const { formatRecordTime, formatRecordType, formatRecordValue } = require('../../utils/recordFormat')
+
+// FC 后端记录类型映射
+const RECORD_TYPE_NAMES = {
+  'feeding': '喂奶', 'bowel': '大便', 'urine': '小便',
+  'medication': '营养品', 'bathing': '洗澡', 'sleep': '睡眠',
+  'growth': '生长指标', 'illness': '病情'
+}
 
 Page({
   data: {
-    // 用户
     userInfo: null,
     hasAuth: false,
-
-    // 家庭
-    familyId: '',
-    familyName: '',
-    inputFamilyId: '',
-    familyNameInput: '',
-
-    // 宝宝
-    babyList: [],
-    selectedBabyId: '',
-    showBabyModal: false,
-    babyName: '',
-    babyGender: '男',
-    babyBirthday: '',
-    babyHeight: '',
-    babyWeight: '',
-
-    // 我的记录
+    babyConfig: { baby_name: '宝宝', gender: 'unknown', birth_date: null, birth_weight: null },
     myRecords: []
   },
 
-  onLoad() {
-    const user = wx.getStorageSync('userInfo')
-    const familyId = wx.getStorageSync('familyId')
-    const familyName = wx.getStorageSync('familyName')
-    const selectedBabyId = wx.getStorageSync('selectedBabyId')
-    
-    if (user) this.setData({ userInfo: user, hasAuth: true })
-    if (familyId) {
-      this.setData({ familyId, familyName, selectedBabyId })
-      this.loadBabies()
-      this.loadMyRecords()
+  async onLoad() {
+    // 检查登录状态
+    const token = api.getToken()
+    const userInfo = wx.getStorageSync('userInfo')
+    if (token && userInfo) {
+      this.setData({ userInfo, hasAuth: true })
+      await Promise.all([
+        this.loadBabyConfig(),
+        this.loadMyRecords()
+      ])
     }
   },
 
   onShow() {
-    this.loadBabies()
-    this.loadMyRecords()
+    if (this.data.hasAuth) {
+      this.loadBabyConfig()
+      this.loadMyRecords()
+    }
   },
 
   // ================= 登录 =================
-  getUserProfile() {
-    wx.getUserProfile({
-      desc: '用于记录宝宝数据',
-      success: (res) => {
-        // 生成唯一用户 ID（使用微信 openId 或设备信息）
-        const systemInfo = wx.getSystemInfoSync()
-        const userId = 'user_' + systemInfo.brand + '_' + systemInfo.model.replace(/\s/g, '') + '_' + Date.now()
-        
-        const userInfo = {
-          ...res.userInfo,
-          userId: userId
-        }
-        
-        this.setData({
-          userInfo: userInfo,
-          hasAuth: true
-        })
-        wx.setStorageSync('userInfo', userInfo)
-        wx.setStorageSync('userId', userId)
-        wx.showToast({ title: '登录成功' })
+  async handleLogin() {
+    wx.showLoading({ title: '登录中...' })
+    try {
+      const data = await api.login()
+      const userInfo = {
+        userId: data.openid,
+        openid: data.openid,
+        nickName: data.nickname || '宝宝家长',
+        avatarUrl: data.avatar_url || ''
       }
+      this.setData({ userInfo, hasAuth: true, babyConfig: null })
+      wx.hideLoading()
+      wx.showToast({ title: '登录成功' })
+      // 登录成功后加载数据
+      this.loadBabyConfig()
+      this.loadMyRecords()
+    } catch (err) {
+      wx.hideLoading()
+      console.error('登录失败', err)
+      wx.showToast({ title: err.message || '登录失败', icon: 'none' })
+    }
+  },
+
+  // ================= 宝宝配置 =================
+  async loadBabyConfig() {
+    try {
+      const config = await api.getBabyConfig()
+      this.setData({ babyConfig: config })
+    } catch (err) {
+      console.error('加载宝宝配置失败', err)
+    }
+  },
+
+  // 打开编辑宝宝信息弹窗（复用 addBaby 弹窗）
+  onEditBaby() {
+    const { babyConfig } = this.data
+    this.setData({
+      showBabyModal: true,
+      babyName: babyConfig.baby_name || '',
+      babyGender: babyConfig.gender === 'male' ? '男' : (babyConfig.gender === 'female' ? '女' : '男'),
+      babyBirthday: babyConfig.birth_date || '',
+      babyHeight: babyConfig.birth_weight ? String(babyConfig.birth_weight) : '',
+      babyWeight: ''
     })
   },
 
-  // ================= 家庭 =================
   onInputChange(e) {
     const field = e.currentTarget.dataset.field
     this.setData({ [field]: e.detail.value })
   },
 
-  async createFamily() {
-    const { familyNameInput, userInfo } = this.data
-    if (!familyNameInput) {
-      wx.showToast({ title: '请输入家庭名称', icon: 'none' })
+  async saveBabyConfig() {
+    const { babyName, babyGender, babyBirthday, babyHeight } = this.data
+    if (!babyName) {
+      wx.showToast({ title: '请输入宝宝姓名', icon: 'none' })
       return
     }
     try {
-      wx.showLoading({ title: '创建中...' })
-      const res = await supabase.insert('family', {
-        name: familyNameInput,
-        creator_id: userInfo?.nickName || '匿名'
+      wx.showLoading({ title: '保存中...' })
+      await api.updateBabyConfig({
+        baby_name: babyName,
+        gender: babyGender === '男' ? 'male' : 'female',
+        birth_date: babyBirthday || null,
+        birth_weight: babyHeight ? parseFloat(babyHeight) : null
       })
-      const familyId = res[0].id
-      wx.setStorageSync('familyId', familyId)
-      wx.setStorageSync('familyName', familyNameInput)
-      this.setData({ familyId, familyName: familyNameInput })
       wx.hideLoading()
-      wx.showToast({ title: '创建成功' })
-      this.loadBabies()
+      wx.showToast({ title: '保存成功' })
+      this.setData({ showBabyModal: false })
+      this.loadBabyConfig()
     } catch (err) {
       wx.hideLoading()
-      console.error(err)
-      wx.showToast({ title: '创建失败', icon: 'none' })
+      console.error('保存失败', err)
+      wx.showToast({ title: err.message || '保存失败', icon: 'none' })
     }
   },
 
-  onFamilyInput(e) {
-    this.setData({ inputFamilyId: e.detail.value })
-  },
-
-  async joinFamily() {
-    const { inputFamilyId } = this.data
-    if (!inputFamilyId) {
-      wx.showToast({ title: '请输入家庭ID', icon: 'none' })
-      return
-    }
-    try {
-      wx.showLoading({ title: '加入中...' })
-      const result = await supabase.select('family', '*', `id=eq.${inputFamilyId}`)
-      if (!result.length) {
-        wx.hideLoading()
-        wx.showToast({ title: '家庭不存在', icon: 'none' })
-        return
-      }
-      const family = result[0]
-      wx.setStorageSync('familyId', family.id)
-      wx.setStorageSync('familyName', family.name)
-      this.setData({ familyId: family.id, familyName: family.name })
-      wx.hideLoading()
-      wx.showToast({ title: '加入成功' })
-      this.loadBabies()
-      this.loadMyRecords()
-    } catch (err) {
-      wx.hideLoading()
-      console.error(err)
-      wx.showToast({ title: '加入失败', icon: 'none' })
-    }
-  },
-
-  // ================= 宝宝 =================
+  // ================= 宝宝弹窗 =================
   openBabyModal() {
     this.setData({ showBabyModal: true })
   },
@@ -150,40 +127,77 @@ Page({
   selectBirthday(e) {
     this.setData({ babyBirthday: e.detail.value })
   },
-  async addBaby() {
-    const { babyName, babyGender, babyBirthday, babyHeight, babyWeight, familyId } = this.data
-    if (!babyName || !familyId) {
-      wx.showToast({ title: '请完善信息', icon: 'none' })
-      return
-    }
+
+  // ================= 退出登录 =================
+  handleLogout() {
+    wx.showModal({
+      title: '退出登录',
+      content: '确认退出登录？',
+      success: (res) => {
+        if (!res.confirm) return
+        api.logout()
+        this.setData({
+          userInfo: null, hasAuth: false,
+          babyConfig: null, myRecords: []
+        })
+        wx.showToast({ title: '已退出登录' })
+      }
+    })
+  },
+
+  // ================= 我的记录 =================
+  async loadMyRecords() {
     try {
-      wx.showLoading({ title: '添加中...' })
-      await supabase.insert('baby', {
-        family_id: familyId,
-        name: babyName,
-        gender: babyGender,
-        birthday: babyBirthday || null,
-        birth_height: babyHeight ? parseFloat(babyHeight) : null,
-        birth_weight: babyWeight ? parseFloat(babyWeight) : null
-      })
-      wx.hideLoading()
-      wx.showToast({ title: '添加成功' })
-      this.setData({
-        babyName: '',
-        babyGender: '男',
-        babyBirthday: '',
-        babyHeight: '',
-        babyWeight: ''
-      })
-      this.closeBabyModal()
-      this.loadBabies()
+      const list = await api.listRecords()
+      const formatted = (list || []).map(item => ({
+        ...item,
+        displayType: item.type_name || RECORD_TYPE_NAMES[item.type] || item.type,
+        displayValue: this.formatRecordDetail(item.details),
+        displayTime: this.formatDisplayTime(item.timestamp || item.created_at),
+        displayUserName: '我'
+      }))
+      this.setData({ myRecords: formatted })
     } catch (err) {
-      wx.hideLoading()
-      console.error(err)
-      wx.showToast({ title: '添加失败', icon: 'none' })
+      console.error('加载记录失败', err)
     }
   },
-  async deleteBaby(e) {
+
+  formatRecordDetail(details) {
+    if (!details) return ''
+    const parts = []
+    if (details.feeding_type) parts.push(details.feeding_type === 'breast' ? '母乳' : '奶粉')
+    if (details.amount_ml) parts.push(`${details.amount_ml}ml`)
+    if (details.name) parts.push(details.name)
+    return parts.join(' ') || JSON.stringify(details)
+  },
+
+  formatDisplayTime(timeStr) {
+    if (!timeStr) return ''
+    try {
+      const date = new Date(timeStr)
+      const now = new Date()
+      const diff = now - date
+      const h = this.padZero(date.getHours())
+      const m = this.padZero(date.getMinutes())
+      if (diff < 24 * 60 * 60 * 1000 && date.getDate() === now.getDate()) {
+        return `今天 ${h}:${m}`
+      }
+      const yesterday = new Date(now)
+      yesterday.setDate(yesterday.getDate() - 1)
+      if (date.getDate() === yesterday.getDate()) {
+        return `昨天 ${h}:${m}`
+      }
+      return `${date.getMonth() + 1}/${date.getDate()} ${h}:${m}`
+    } catch {
+      return timeStr
+    }
+  },
+
+  padZero(num) {
+    return String(num).padStart(2, '0')
+  },
+
+  async deleteRecord(e) {
     const id = e.currentTarget.dataset.id
     wx.showModal({
       title: '确认删除',
@@ -191,130 +205,14 @@ Page({
       success: async (res) => {
         if (!res.confirm) return
         try {
-          await supabase.delete('baby', `id=eq.${id}`)
+          await api.deleteRecord(id)
           wx.showToast({ title: '已删除' })
-          this.loadBabies()
+          this.loadMyRecords()
         } catch (err) {
           console.error(err)
           wx.showToast({ title: '删除失败', icon: 'none' })
         }
       }
     })
-  },
-  async loadBabies() {
-    const { familyId, selectedBabyId } = this.data
-    if (!familyId) return
-    try {
-      const list = await supabase.select('baby', '*', `family_id=eq.${familyId}`)
-      this.setData({ babyList: list || [] })
-
-      if (!list || list.length === 0) {
-        this.clearSelectedBaby()
-        return
-      }
-
-      const babyExists = list.some(b => b.id === selectedBabyId)
-      if (!selectedBabyId || !babyExists) {
-        const firstBabyId = list[0].id
-        this.setData({ selectedBabyId: firstBabyId })
-        wx.setStorageSync('selectedBabyId', firstBabyId)
-      }
-    } catch (err) {
-      console.error('加载宝宝失败', err)
-    }
-  },
-
-  // 切换宝宝
-  selectBaby(e) {
-    const babyId = e.currentTarget.dataset.id
-    this.setData({ selectedBabyId: babyId })
-    wx.setStorageSync('selectedBabyId', babyId)
-    wx.showToast({
-      title: '已切换到' + (e.currentTarget.dataset.name || '该宝宝'),
-      icon: 'success'
-    })
-  },
-
-  clearSelectedBaby() {
-    this.setData({ selectedBabyId: '' })
-    wx.removeStorageSync('selectedBabyId')
-  },
-
-  exitFamily() {
-    wx.showModal({
-      title: '退出家庭',
-      content: '确认退出后会清除家庭信息和当前宝宝选择',
-      success: (res) => {
-        if (!res.confirm) return
-        this.clearFamily()
-      }
-    })
-  },
-
-  clearFamily() {
-    wx.removeStorageSync('familyId')
-    wx.removeStorageSync('familyName')
-    this.clearSelectedBaby()
-    this.setData({
-      familyId: '',
-      familyName: '',
-      babyList: [],
-      myRecords: []
-    })
-  },
-
- 
-// ================= 我的记录 =================
-async loadMyRecords() {
-  const { userInfo } = this.data
-  
-  // 优先使用存储的 userId，兼容旧数据
-  let userId = wx.getStorageSync('userId')
-  if (!userId && userInfo) {
-    // 兼容旧版本：使用设备信息生成 userId
-    const systemInfo = wx.getSystemInfoSync()
-    userId = 'anon_' + systemInfo.brand + '_' + systemInfo.model.replace(/\s/g, '')
   }
-  
-  if (!userId) return
-
-  try {
-    const list = await supabase.select(
-      'records',
-      '*',
-      `user_id=eq.'${userId}'&order=created_at.desc`
-    )
-    const formatted = (list || []).map(item => ({
-      ...item,
-      displayType: formatRecordType(item.type),
-      displayValue: formatRecordValue(item),
-      displayTime: formatRecordTime(item.created_at || item.create_at),
-      displayUserName: item.user_name || '匿名'
-    }))
-    this.setData({ myRecords: formatted })
-  } catch (err) {
-    console.error('加载记录失败', err)
-  }
-},
-
-async deleteRecord(e) {
-  const id = e.currentTarget.dataset.id
-  wx.showModal({
-    title: '确认删除',
-    content: '删除后不可恢复',
-    success: async (res) => {
-      if (!res.confirm) return
-      try {
-        await supabase.delete('records', `id=eq.${id}`)
-        wx.showToast({ title: '已删除' })
-        this.loadMyRecords()
-      } catch (err) {
-        console.error(err)
-        wx.showToast({ title: '删除失败', icon: 'none' })
-      }
-    }
-  })
-},
-
-// 移除 addOrEditRecord 和 openRecordModal 等新增/编辑相关方法
-});
+})

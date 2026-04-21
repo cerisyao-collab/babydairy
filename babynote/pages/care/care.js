@@ -37,177 +37,88 @@ Page({
     this.setData({ showTemperatureModal: false });
   },
 
-  // ================== 身高体重 ==================
+  // ================== 生长指标 ==================
   async recordHeightWeight() {
+    const api = require('../../utils/api');
     const { height, weight, head, foot } = this.data;
-    const { supabase } = require('../../utils/supabase');
-
-    // 获取统一 userId
-    let userId = wx.getStorageSync('userId');
-    if (!userId) {
-      const systemInfo = wx.getSystemInfoSync();
-      userId = 'anon_' + systemInfo.brand + '_' + systemInfo.model.replace(/\s/g, '');
-    }
-    const userName = wx.getStorageSync('userInfo')?.nickName || '匿名用户';
 
     const fields = [
-      { type: 'height', value: height },
-      { type: 'weight', value: weight },
-      { type: 'head', value: head },
-      { type: 'foot', value: foot }
+      { key: 'height_cm', value: height },
+      { key: 'weight_kg', value: weight },
+      { key: 'head_cm', value: head },
+      { key: 'foot_cm', value: foot }
     ];
 
     try {
       wx.showLoading({ title: '记录中...' });
 
-      const records = [];
-
+      const details = {};
       for (const f of fields) {
         const val = parseFloat(f.value);
-
-        // 过滤空值 & NaN
-        if (!f.value || isNaN(val)) {
-          continue;
+        if (f.value && !isNaN(val)) {
+          details[f.key] = val;
         }
-
-        records.push({
-          type: f.type,
-          value: val,
-          user_id: userId,
-          user_name: userName
-        });
       }
 
-      // 防止全部为空
-      if (records.length === 0) {
+      if (Object.keys(details).length === 0) {
         wx.hideLoading();
-        wx.showToast({
-          title: '请填写有效数据',
-          icon: 'none'
-        });
+        wx.showToast({ title: '请填写有效数据', icon: 'none' });
         return;
       }
 
-      // 一次性插入
-      await supabase.insert('records', records);
+      await api.createRecord('growth', details);
 
       wx.hideLoading();
-      wx.showToast({ title: '记录成功', icon: 'success' });
+      wx.showToast({ title: '生长指标记录成功', icon: 'success' });
 
       this.closeHeightWeightModal();
-
-      // 清空输入
-      this.setData({
-        height: '',
-        weight: '',
-        head: '',
-        foot: ''
-      });
+      this.setData({ height: '', weight: '', head: '', foot: '' });
 
     } catch (err) {
       wx.hideLoading();
-      console.error('插入失败', err);
-      wx.showToast({
-        title: err.message || '记录失败',
-        icon: 'none'
-      });
+      console.error('记录失败', err);
+      wx.showToast({ title: err.message || '记录失败', icon: 'none' });
     }
   },
 
   // ================== 体温 ==================
   async recordTemperature() {
+    const api = require('../../utils/api');
     const { temperature } = this.data;
-    const { supabase } = require('../../utils/supabase');
-
-    // 获取统一 userId
-    let userId = wx.getStorageSync('userId');
-    if (!userId) {
-      const systemInfo = wx.getSystemInfoSync();
-      userId = 'anon_' + systemInfo.brand + '_' + systemInfo.model.replace(/\s/g, '');
-    }
-    const userName = wx.getStorageSync('userInfo')?.nickName || '匿名用户';
-
     const val = parseFloat(temperature);
 
     if (!temperature || isNaN(val)) {
-      wx.showToast({
-        title: '请输入正确体温',
-        icon: 'none'
-      });
+      wx.showToast({ title: '请输入正确体温', icon: 'none' });
       return;
     }
 
     try {
       wx.showLoading({ title: '记录中...' });
 
-      await supabase.insert('records', {
-        type: 'temperature',
-        value: val,
-        user_id: userId,
-        user_name: userName
+      await api.createRecord('illness', {
+        temperature: val,
+        symptom: '体温记录'
       });
 
       wx.hideLoading();
-      wx.showToast({ title: '记录成功', icon: 'success' });
+      wx.showToast({ title: '体温记录成功', icon: 'success' });
 
       this.closeTemperatureModal();
       this.setData({ temperature: 36.5 });
 
     } catch (err) {
       wx.hideLoading();
-      console.error('插入失败', err);
-      wx.showToast({
-        title: err.message || '记录失败',
-        icon: 'none'
-      });
+      console.error('记录失败', err);
+      wx.showToast({ title: err.message || '记录失败', icon: 'none' });
     }
   },
 
   // ================== 其他护理 ==================
   async recordBathing() {
-    const { supabase } = require('../../utils/supabase');
-    
-    // 获取统一 userId
-    let userId = wx.getStorageSync('userId');
-    if (!userId) {
-      const systemInfo = wx.getSystemInfoSync();
-      userId = 'anon_' + systemInfo.brand + '_' + systemInfo.model.replace(/\s/g, '');
-    }
-    const userName = wx.getStorageSync('userInfo')?.nickName || '匿名用户';
-    
+    const api = require('../../utils/api');
     try {
-      await supabase.insert('records', {
-        type: 'bathing',
-        value: null,
-        user_id: userId,
-        user_name: userName
-      });
+      await api.createRecord('bathing', {});
       wx.showToast({ title: '洗澡记录成功', icon: 'success' });
-    } catch (err) {
-      console.error(err);
-      wx.showToast({ title: '失败', icon: 'none' });
-    }
-  },
-
-  async recordNailCutting() {
-    const { supabase } = require('../../utils/supabase');
-    
-    // 获取统一 userId
-    let userId = wx.getStorageSync('userId');
-    if (!userId) {
-      const systemInfo = wx.getSystemInfoSync();
-      userId = 'anon_' + systemInfo.brand + '_' + systemInfo.model.replace(/\s/g, '');
-    }
-    const userName = wx.getStorageSync('userInfo')?.nickName || '匿名用户';
-    
-    try {
-      await supabase.insert('records', {
-        type: 'nail_cutting',
-        value: null,
-        user_id: userId,
-        user_name: userName
-      });
-      wx.showToast({ title: '剪指甲记录成功', icon: 'success' });
     } catch (err) {
       console.error(err);
       wx.showToast({ title: '失败', icon: 'none' });

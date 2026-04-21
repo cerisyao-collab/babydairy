@@ -11,15 +11,10 @@
       <view class="btn-icon">🚿</view>
       <view class="btn-text">洗澡</view>
     </view>
-    
-    <view class="action-btn nail" bindtap="recordNailCutting">
-      <view class="btn-icon">✂️</view>
-      <view class="btn-text">剪指甲</view>
-    </view>
 
     <view class="action-btn heightweight" bindtap="openHeightWeightModal">
       <view class="btn-icon">📏</view>
-      <view class="btn-text">身高体重</view>
+      <view class="btn-text">生长指标</view>
     </view>
 
     <view class="action-btn temperature" bindtap="openTemperatureModal">
