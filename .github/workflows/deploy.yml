@@ -20,12 +20,11 @@ permissions:
 
 env:
   TERRAFORM_VERSION: '1.6.0'
-  NODE_VERSION: '18'
   ALIYUN_REGION: 'cn-shanghai'
 
 jobs:
   # Job 1: Deploy Infrastructure with Terraform
-  deploy-infrastructure:
+  deploy-infra:
     name: Deploy Infrastructure
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event.inputs.environment == 'production'
@@ -73,7 +72,6 @@ jobs:
 
       - name: Terraform Init
         run: |
-          # Extract STS credentials from aliyun CLI config (written by OIDC Auth step)
           export ALICLOUD_ACCESS_KEY=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
           export ALICLOUD_SECRET_KEY=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
           export ALICLOUD_SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
@@ -91,7 +89,7 @@ jobs:
           export ALICLOUD_ACCESS_KEY=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
           export ALICLOUD_SECRET_KEY=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
           export ALICLOUD_SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
-          terraform plan -out=tfplan -detailed-exitcode
+          terraform plan -out=tfplan -detailed-exitcode -target=alicloud_vpc.main -target=alicloud_vswitch.rds -target=alicloud_vswitch.fc -target=alicloud_security_group.rds -target=alicloud_db_instance.postgres -target=alicloud_oss_bucket.secrets -target=alicloud_ram_role.fc_deploy -target=alicloud_ram_policy.fc_deploy -target=alicloud_ram_policy.terraform_deploy -target=alicloud_ram_role.terraform_deploy
         working-directory: terraform
         continue-on-error: true
 
@@ -116,8 +114,8 @@ jobs:
   deploy-function:
     name: Deploy FC Function
     runs-on: ubuntu-latest
-    needs: deploy-infrastructure
-    if: always() && needs.deploy-infrastructure.result != 'failure'
+    needs: deploy-infra
+    if: always() && needs.deploy-infra.result != 'failure'
 
     steps:
       - name: Checkout
@@ -130,6 +128,10 @@ jobs:
           sudo mv aliyun /usr/local/bin/
           aliyun version
 
+      - name: Install Serverless Devs
+        run: |
+          npm install -g @serverless-devs/s
+
       - name: OIDC Authentication
         env:
           ROLE_TO_ASSUME: ${{ secrets.FC_DEPLOY_ROLE_ARN }}
@@ -140,13 +142,33 @@ jobs:
           chmod +x scripts/oidc_auth.sh
           ./scripts/oidc_auth.sh
 
-      - name: Install ossutil
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Grant Temp Code Bucket Permission
         run: |
-          wget -q https://gosspublic.alicdn.com/ossutil/1.7.18/ossutil-v1.7.18-linux-amd64.zip
-          unzip -q ossutil-v1.7.18-linux-amd64.zip
-          chmod +x ossutil-v1.7.18-linux-amd64/ossutil
-          sudo mv ossutil-v1.7.18-linux-amd64/ossutil /usr/local/bin/
-          ossutil --version
+          # Add fc:GrantTempCodeBucketPermission to the fc-deploy policy directly via CLI
+          # This is needed for Serverless Devs to upload code
+          aliyun ram CreatePolicy --PolicyName "baby-diary-fc-code-upload" \
+            --PolicyType "Custom" \
+            --Description "Allow FC code upload via Serverless Devs" \
+            --PolicyDocument '{"Version":"1","Statement":[{"Effect":"Allow","Action":["fc:GrantTempCodeBucketPermission"],"Resource":["acs:fc:*:*:services/baby-diary-*"]}]}' 2>/dev/null || true
+          aliyun ram AttachPolicyToRole --PolicyName "baby-diary-fc-code-upload" \
+            --PolicyType "Custom" --RoleName "baby-diary-fc-deploy"
+
+      - name: Configure Serverless Devs Access
+        run: |
+          ACCESS_KEY_ID=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
+          ACCESS_KEY_SECRET=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
+          SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
+
+          s config add \
+            --AccessKeyID "$ACCESS_KEY_ID" \
+            --AccessKeySecret "$ACCESS_KEY_SECRET" \
+            --SecurityToken "$SECURITY_TOKEN" \
+            -a default
 
       - name: Install Python Dependencies
         run: |
@@ -164,57 +186,8 @@ jobs:
           WECHAT_APP_SECRET: ${{ secrets.WECHAT_APP_SECRET }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
-          # Extract STS credentials
-          ACCESS_KEY_ID=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
-          ACCESS_KEY_SECRET=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
-          SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
-
-          # Package code into a zip (exclude unnecessary files)
-          zip -rq function_code.zip . \
-            -x "*.git*" "*.github*" "terraform/*" "scripts/*" "openspec/*" "tests/*" ".claude/*" \
-            "babynote/*" "docs/*" "config/*" "*.md" "*.log" ".gitignore" \
-            ".env.example" "s.yaml" "s.yaml.*" "alembic.ini" "Dockerfile*" \
-            "function_code.zip" "python/.*" ".mypy_cache/*" "scripts/*"
-
-          # Upload zip to OSS (reuse secrets bucket)
-          BUCKET="$OSS_SECRETS_BUCKET"
-          OBJECT="fc-code/function_code.zip"
-          ossutil cp function_code.zip "oss://$BUCKET/$OBJECT" \
-            -e "$OSS_ENDPOINT" \
-            -i "$ACCESS_KEY_ID" \
-            -k "$ACCESS_KEY_SECRET" \
-            -t "$SECURITY_TOKEN" \
-            --sts-token "$SECURITY_TOKEN" --force
-
-          # Update function code from OSS
-          aliyun fc POST "/2023-03-30/services/baby-diary-service/functions/api/code" \
-            --body "$(jq -n --arg b "$BUCKET" --arg o "$OBJECT" \
-              '{Code: {OssBucketName: $b, OssObjectName: $o}}')"
-
-          # Update function configuration
-          aliyun fc PUT "/2023-03-30/services/baby-diary-service/functions/api" \
-            --body "$(jq -n \
-              --arg handler "src.api.index.handler" \
-              --arg db "$DATABASE_URL" \
-              --arg wid "$WECHAT_APP_ID" \
-              --arg ws "$WECHAT_APP_SECRET" \
-              --arg js "$JWT_SECRET" \
-              '{
-                Handler: $handler,
-                Runtime: "python3.9",
-                MemorySize: 256,
-                Timeout: 30,
-                EnvironmentVariables: {
-                  DATABASE_URL: $db,
-                  WECHAT_APP_ID: $wid,
-                  WECHAT_APP_SECRET: $ws,
-                  JWT_SECRET: $js,
-                  JWT_ALGORITHM: "HS256",
-                  JWT_EXPIRE_MINUTES: "10080"
-                }
-              }')"
-
-          echo "FC function updated successfully"
+          chmod +x scripts/fc_deploy.sh
+          ./scripts/fc_deploy.sh
 
   # Job 3: Verify Deployment
   verify:
@@ -246,7 +219,6 @@ jobs:
 
       - name: Health Check
         run: |
-          # Get FC HTTP trigger endpoint
           ENDPOINT=$(aliyun fc GET /2023-03-30/functions/baby-diary-service.api/httpTrigger 2>/dev/null | jq -r '.url' || echo "")
 
           if [ -z "$ENDPOINT" ]; then
@@ -256,7 +228,6 @@ jobs:
 
           echo "API Endpoint: $ENDPOINT"
 
-          # Health check
           curl -s "$ENDPOINT/api/health" || echo "Health check completed"
 
       - name: Deployment Summary

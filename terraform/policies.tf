@@ -175,13 +175,14 @@ resource "alicloud_ram_policy" "fc_deploy" {
           "acs:fc:*:*:services/baby-diary-*/functions/*",
         ]
       },
-      # OSS secrets read (for deployment-time secret access)
+      # OSS secrets read + write (for deployment-time secret access and code upload)
       {
         Effect = "Allow"
         Action = [
           "oss:GetObject",
           "oss:GetObjectVersion",
           "oss:ListObjects",
+          "oss:PutObject",
         ]
         Resource = [
           "acs:oss:*:*:baby-diary-secrets",
