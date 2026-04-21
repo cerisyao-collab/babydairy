@@ -157,36 +157,39 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           # Extract STS credentials
-          export ALIBABA_CLOUD_ACCESS_KEY_ID=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
-          export ALIBABA_CLOUD_ACCESS_KEY_SECRET=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
-          export ALIBABA_CLOUD_SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
+          ACCESS_KEY_ID=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
+          ACCESS_KEY_SECRET=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
+          SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
 
           # Package code into a zip
-          zip -r function_code.zip . -x "*.git*" "*.github*" "terraform/*" "scripts/*" "openspec/*" "tests/*" ".claude/*"
+          zip -rq function_code.zip . \
+            -x "*.git*" "*.github*" "terraform/*" "scripts/*" "openspec/*" "tests/*" ".claude/*" \
+            "babynote/*" "docs/*" "config/*" "*.md" "*.log" ".gitignore" \
+            ".env.example" "s.yaml" "s.yaml.*" "alembic.ini" "Dockerfile*" \
+            "function_code.zip" "python/.*" ".mypy_cache/*"
 
-          # Update function code
-          aliyun fc UpdateFunctionCode \
-            --region cn-shanghai \
-            --serviceName baby-diary-service \
-            --functionName api \
-            --ZipFile ./function_code.zip
+          # Encode zip as base64
+          B64_CODE=$(base64 -w 0 function_code.zip)
 
-          # Update function configuration with environment variables
-          aliyun fc UpdateFunction \
-            --region cn-shanghai \
-            --serviceName baby-diary-service \
-            --functionName api \
-            --Handler src.api.index.handler \
-            --Runtime python3.9 \
-            --MemorySize 256 \
-            --Timeout 30 \
-            --EnvironmentVariables '{
-              "DATABASE_URL": "'"$DATABASE_URL"'",
-              "WECHAT_APP_ID": "'"$WECHAT_APP_ID"'",
-              "WECHAT_APP_SECRET": "'"$WECHAT_APP_SECRET"'",
-              "JWT_SECRET": "'"$JWT_SECRET"'",
-              "JWT_ALGORITHM": "HS256",
-              "JWT_EXPIRE_MINUTES": "10080"
+          # Update function code via FC OpenAPI
+          aliyun fc POST "/2023-03-30/services/baby-diary-service/functions/api/code" \
+            --body "{\"Code\": {\"ZipFile\": \"$B64_CODE\"}}"
+
+          # Update function configuration
+          aliyun fc PUT "/2023-03-30/services/baby-diary-service/functions/api" \
+            --body '{
+              "Handler": "src.api.index.handler",
+              "Runtime": "python3.9",
+              "MemorySize": 256,
+              "Timeout": 30,
+              "EnvironmentVariables": {
+                "DATABASE_URL": "'"$DATABASE_URL"'",
+                "WECHAT_APP_ID": "'"$WECHAT_APP_ID"'",
+                "WECHAT_APP_SECRET": "'"$WECHAT_APP_SECRET"'",
+                "JWT_SECRET": "'"$JWT_SECRET"'",
+                "JWT_ALGORITHM": "HS256",
+                "JWT_EXPIRE_MINUTES": "10080"
+              }
             }'
 
           echo "FC function updated successfully"
