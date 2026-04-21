@@ -42,6 +42,7 @@ Page({
     wx.showLoading({ title: '登录中...' })
     try {
       const data = await api.login()
+      console.log('登录成功，token:', !!data.token)
       const userInfo = {
         userId: data.openid,
         openid: data.openid,
@@ -49,6 +50,9 @@ Page({
         avatarUrl: data.avatar_url || ''
       }
       this.setData({ userInfo, hasAuth: true, babyConfig: null })
+      // 验证 token 确实存储了
+      const savedToken = wx.getStorageSync('token')
+      console.log('storage token:', !!savedToken)
       wx.hideLoading()
       wx.showToast({ title: '登录成功' })
       // 登录成功后加载数据
@@ -57,7 +61,11 @@ Page({
     } catch (err) {
       wx.hideLoading()
       console.error('登录失败', err)
-      wx.showToast({ title: err.message || '登录失败', icon: 'none' })
+      wx.showModal({
+        title: '登录失败',
+        content: err.message || '请检查网络连接',
+        showCancel: false
+      })
     }
   },
 

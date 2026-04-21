@@ -14,14 +14,17 @@ function login() {
           reject(new Error('微信登录失败，未获取到 code'))
           return
         }
+        console.log('wx.login code:', loginRes.code.substring(0, 10) + '...')
         wx.request({
           url: `${getApiBaseUrl()}/api/auth/login`,
           method: 'POST',
           header: { 'Content-Type': 'application/json' },
           data: { code: loginRes.code },
           success: (res) => {
+            console.log('登录响应 status:', res.statusCode)
             if (res.statusCode === 200) {
               const data = res.data
+              console.log('login response:', data.token ? 'has token' : 'no token')
               // 保存 token 和用户信息
               wx.setStorageSync('token', data.token)
               wx.setStorageSync('userInfo', {
@@ -32,13 +35,14 @@ function login() {
               })
               resolve(data)
             } else {
-              reject(new Error(res.data?.detail || '登录失败'))
+              const msg = res.data?.detail || `服务器错误 (${res.statusCode})`
+              reject(new Error(typeof msg === 'string' ? msg : JSON.stringify(msg)))
             }
           },
-          fail: reject
+          fail: (err) => reject(new Error('网络请求失败: ' + err.errMsg))
         })
       },
-      fail: reject
+      fail: (err) => reject(new Error('wx.login 失败: ' + err.errMsg))
     })
   })
 }
