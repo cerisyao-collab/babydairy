@@ -168,28 +168,8 @@ jobs:
             ".env.example" "s.yaml" "s.yaml.*" "alembic.ini" "Dockerfile*" \
             "function_code.zip" "python/.*" ".mypy_cache/*"
 
-          # Build body JSON using Python to handle large base64
-          B64=$(base64 -w 0 function_code.zip)
-          python3 -c "
-import json, os, sys
-body = {
-    'Code': {'ZipFile': sys.argv[1]},
-    'Handler': 'src.api.index.handler',
-    'Runtime': 'python3.9',
-    'MemorySize': 256,
-    'Timeout': 30,
-    'EnvironmentVariables': {
-        'DATABASE_URL': os.environ['DATABASE_URL'],
-        'WECHAT_APP_ID': os.environ.get('WECHAT_APP_ID', ''),
-        'WECHAT_APP_SECRET': os.environ.get('WECHAT_APP_SECRET', ''),
-        'JWT_SECRET': os.environ.get('JWT_SECRET', ''),
-        'JWT_ALGORITHM': 'HS256',
-        'JWT_EXPIRE_MINUTES': '10080',
-    }
-}
-with open('/tmp/fc_update_body.json', 'w') as f:
-    json.dump(body, f)
-" "$B64"
+          # Build body JSON using helper script
+          python3 scripts/build_fc_body.py function_code.zip /tmp/fc_update_body.json
 
           # Update function (code + config) via FC 3.0 API
           aliyun fc UpdateFunction --FunctionName api --body file:///tmp/fc_update_body.json
