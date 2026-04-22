@@ -172,7 +172,7 @@ jobs:
           python3 scripts/build_fc_body.py function_code.zip /tmp/fc_update_body.json
 
           # Update function (code + config) via FC 3.0 API
-          aliyun fc UpdateFunction --FunctionName api --body file:///tmp/fc_update_body.json
+          aliyun fc UpdateFunction --functionName api --body file:///tmp/fc_update_body.json
 
           echo "FC function updated successfully"
 
