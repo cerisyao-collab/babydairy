@@ -168,11 +168,21 @@ jobs:
             ".env.example" "s.yaml" "s.yaml.*" "alembic.ini" "Dockerfile*" \
             "function_code.zip" "python/.*" ".mypy_cache/*"
 
-          # Build body JSON using helper script
-          python3 scripts/build_fc_body.py function_code.zip /tmp/fc_update_body.json
+          # Step 1: Create a session to upload code
+          SESSION=$(aliyun fc CreateSession --functionName api --body '{}' 2>/dev/null | jq -r '.sessionId')
+          echo "Created session: $SESSION"
 
-          # Update function (code + config) via FC 3.0 API
-          aliyun fc UpdateFunction --functionName api --body file:///tmp/fc_update_body.json
+          # Step 2: Upload code to session
+          python3 scripts/build_fc_body.py function_code.zip /tmp/fc_code_body.json
+          aliyun fc UpdateSession --functionName api --sessionId "$SESSION" --body file:///tmp/fc_code_body.json
+
+          # Step 3: Update function configuration
+          aliyun fc UpdateFunction --functionName api --body "$(jq -n \
+            --arg db "$DATABASE_URL" \
+            --arg wid "$WECHAT_APP_ID" \
+            --arg ws "$WECHAT_APP_SECRET" \
+            --arg js "$JWT_SECRET" \
+            '{Handler:"src.api.index.handler",Runtime:"python3.9",MemorySize:256,Timeout:30,EnvironmentVariables:{DATABASE_URL:$db,WECHAT_APP_ID:$wid,WECHAT_APP_SECRET:$ws,JWT_SECRET:$js,JWT_ALGORITHM:"HS256",JWT_EXPIRE_MINUTES:"10080"}}')"
 
           echo "FC function updated successfully"
 
