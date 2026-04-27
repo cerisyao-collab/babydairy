@@ -126,9 +126,12 @@ jobs:
           sudo mv aliyun /usr/local/bin/
           aliyun version
 
-      - name: OIDC Authentication
+      - name: Install Serverless Devs
+        run: npm install -g @serverless-devs/s
+
+      - name: OIDC Authentication (Terraform Role)
         env:
-          ROLE_TO_ASSUME: ${{ secrets.FC_DEPLOY_ROLE_ARN }}
+          ROLE_TO_ASSUME: ${{ secrets.TERRAFORM_DEPLOY_ROLE_ARN }}
           OIDC_PROVIDER_ARN: ${{ secrets.OIDC_PROVIDER_ARN }}
           OIDC_AUDIENCE: github-actions
           ROLE_SESSION_NAME: fc-deploy-${{ github.run_id }}
@@ -136,55 +139,51 @@ jobs:
           chmod +x scripts/oidc_auth.sh
           ./scripts/oidc_auth.sh
 
+      - name: Grant FC Code Upload Permission
+        run: |
+          aliyun ram CreatePolicy \
+            --PolicyName "baby-diary-fc-code-upload" \
+            --PolicyType "Custom" \
+            --Description "Allow FC code upload via Serverless Devs" \
+            --PolicyDocument '{"Version":"1","Statement":[{"Effect":"Allow","Action":["fc:GrantTempCodeBucketPermission"],"Resource":["acs:fc:*:*:services/baby-diary-*"]}]}' 2>/dev/null || echo "Policy already exists"
+          aliyun ram AttachPolicyToRole \
+            --PolicyName "baby-diary-fc-code-upload" \
+            --PolicyType "Custom" \
+            --RoleName "baby-diary-fc-deploy"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+
+      - name: Configure Serverless Devs Access
+        run: |
+          ACCESS_KEY_ID=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
+          ACCESS_KEY_SECRET=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
+          SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
+          s config add \
+            --AccessKeyID "$ACCESS_KEY_ID" \
+            --AccessKeySecret "$ACCESS_KEY_SECRET" \
+            --SecurityToken "$SECURITY_TOKEN" \
+            -a default
 
       - name: Install Python Dependencies
         run: pip install --target python/ -r requirements.txt
 
       - name: Deploy FC Function
         env:
+          VPC_ID: ${{ secrets.VPC_ID }}
+          VSWITCH_ID: ${{ secrets.VSWITCH_ID }}
+          SECURITY_GROUP_ID: ${{ secrets.SECURITY_GROUP_ID }}
+          OSS_SECRETS_BUCKET: ${{ secrets.OSS_SECRETS_BUCKET }}
+          OSS_ENDPOINT: oss-cn-shanghai.aliyuncs.com
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           WECHAT_APP_ID: ${{ secrets.WECHAT_APP_ID }}
           WECHAT_APP_SECRET: ${{ secrets.WECHAT_APP_SECRET }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          VPC_ID: ${{ secrets.VPC_ID }}
-          VSWITCH_ID: ${{ secrets.VSWITCH_ID }}
-          SECURITY_GROUP_ID: ${{ secrets.SECURITY_GROUP_ID }}
         run: |
-          ACCESS_KEY_ID=$(jq -r '.profiles[0].access_key_id' ~/.aliyun/config.json)
-          ACCESS_KEY_SECRET=$(jq -r '.profiles[0].access_key_secret' ~/.aliyun/config.json)
-          SECURITY_TOKEN=$(jq -r '.profiles[0].sts_token' ~/.aliyun/config.json)
-          export ALIBABA_CLOUD_ACCESS_KEY_ID="$ACCESS_KEY_ID"
-          export ALIBABA_CLOUD_ACCESS_KEY_SECRET="$ACCESS_KEY_SECRET"
-          export ALIBABA_CLOUD_SECURITY_TOKEN="$SECURITY_TOKEN"
-
-          # Package code
-          zip -rq function_code.zip . \
-            -x "*.git*" "*.github*" "terraform/*" "scripts/*" "openspec/*" "tests/*" ".claude/*" \
-            "babynote/*" "docs/*" "config/*" "*.md" "*.log" ".gitignore" \
-            ".env.example" "s.yaml" "s.yaml.*" "alembic.ini" "Dockerfile*" \
-            "function_code.zip" "python/.*" ".mypy_cache/*"
-
-          # Step 1: Create a session to upload code
-          SESSION=$(aliyun fc CreateSession --functionName api --body '{}' 2>/dev/null | jq -r '.sessionId')
-          echo "Created session: $SESSION"
-
-          # Step 2: Upload code to session
-          python3 scripts/build_fc_body.py function_code.zip /tmp/fc_code_body.json
-          aliyun fc UpdateSession --functionName api --sessionId "$SESSION" --body file:///tmp/fc_code_body.json
-
-          # Step 3: Update function configuration
-          aliyun fc UpdateFunction --functionName api --body "$(jq -n \
-            --arg db "$DATABASE_URL" \
-            --arg wid "$WECHAT_APP_ID" \
-            --arg ws "$WECHAT_APP_SECRET" \
-            --arg js "$JWT_SECRET" \
-            '{Handler:"src.api.index.handler",Runtime:"python3.9",MemorySize:256,Timeout:30,EnvironmentVariables:{DATABASE_URL:$db,WECHAT_APP_ID:$wid,WECHAT_APP_SECRET:$ws,JWT_SECRET:$js,JWT_ALGORITHM:"HS256",JWT_EXPIRE_MINUTES:"10080"}}')"
-
-          echo "FC function updated successfully"
+          chmod +x scripts/fc_deploy.sh
+          yes | ./scripts/fc_deploy.sh
 
   # Job 3: Verify Deployment
   verify:

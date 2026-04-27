@@ -90,6 +90,7 @@ resource "alicloud_ram_policy" "terraform_deploy" {
           "ram:DeletePolicy",
           "ram:GetPolicy",
           "ram:ListPolicies",
+          "ram:ListPoliciesForRole",
           "ram:AttachPolicyToRole",
           "ram:DetachPolicyFromRole",
           "ram:CreateOIDCProvider",
