@@ -6,3 +6,4 @@ psycopg2-binary>=2.9.0
 PyJWT>=2.8.0
 oss2>=2.18.0
 dashscope>=1.14.0
+exceptiongroup>=1.1.0
