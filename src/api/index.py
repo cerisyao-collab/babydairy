@@ -7,7 +7,12 @@
 
 import json
 import logging
+import os
+import sys
 from typing import Any, Dict, Callable
+
+# Add local dependencies to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'lib', 'python3.9', 'site-packages'))
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

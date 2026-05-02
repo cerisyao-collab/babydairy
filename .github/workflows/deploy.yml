@@ -156,7 +156,7 @@ jobs:
             -a default
 
       - name: Install Python Dependencies
-        run: pip install --target python/ -r requirements.txt
+        run: pip install --target lib/python3.9/site-packages -r requirements.txt
 
       - name: Deploy FC Function
         env:
